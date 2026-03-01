@@ -1,145 +1,181 @@
 ﻿# PureCompanyBot
 
-Telegram bot on `aiogram 3` with:
-- LLM responses via Ollama
-- Crypto prices via CoinGecko
-- Weather via Russian source (Gismeteo RSS for Moscow) with fallback
-- FX via Central Bank of Russia (CBR)
-- News via Russian RSS feeds (RBC/Lenta/RIA/Habr/vc)
-- SQLite conversation history
-- `/status` health checks
-- Optional background `crypto_watcher`
+Telegram-бот "личный ассистент" на `aiogram + SQLite + локальная Ollama`.
 
-## 1. Install
+## 1) Основная идея проекта
+Сейчас проект эволюционирует в сторону **AI-центра как "Операционной системы дня"**:
+- утром понять приоритет,
+- днем поддержать выполнение,
+- вечером зафиксировать результат,
+- в конце недели скорректировать курс.
 
+Ключевая проблема на текущем этапе: не баги, а распыление функционала.
+
+## 2) Текущие подсистемы
+1. **Core commands/router**: базовые команды, меню, статус, маршруты, todo/subs/checkin.
+2. **Chat + LLM контур**: диалог, intent-классификация, confidence-gate, tool-first ответы.
+3. **Data services**: рынок, погода, новости, дайджест, prewarm, scheduler.
+4. **Fitness**: текстовые тренировки, дневной выбор, лог выполнения.
+5. **Growth/Advanced ops**: score/plan/review + сценарные AI-команды.
+6. **UX/gamification**: today/week панели, micro-sprints, boss/arena/rescue.
+7. **Persistence layer (SQLite)**: все пользовательские данные и кэш.
+
+## 3) Структура папок
+```text
+.
+├─ bot.py                    # Точка входа, wiring роутеров и воркеров
+├─ db.py                     # Схема и операции SQLite
+├─ core/
+│  ├─ settings.py            # Чтение и валидация .env
+│  └─ logging_setup.py       # Логирование
+├─ handlers/
+│  ├─ commands.py            # Базовые команды и command center
+│  ├─ chat.py                # Обычный LLM-чат
+│  ├─ ux_router.py           # /today, /week, UX-панели
+│  ├─ fitness.py             # /fit
+│  ├─ growth.py              # /score, /plan, /review
+│  └─ advanced_ops.py        # /boardroom, /redteam и др.
+├─ services/
+│  ├─ llm_service.py         # Вызовы Ollama + prompt-профили
+│  ├─ assistant_intent_service.py
+│  ├─ assistant_tools_service.py
+│  ├─ digest_service.py
+│  ├─ scheduler_service.py
+│  └─ ...                    # weather/crypto/forex/fuel/ux и др.
+├─ tests/                    # Unit-тесты
+├─ scripts/                  # Bootstrap/run/check_secrets
+├─ .githooks/                # pre-commit hook
+├─ .env.example
+└─ requirements.txt
+```
+
+## 4) Запуск локально (Windows и Mac)
+### Windows (PowerShell)
 ```powershell
+.\scripts\bootstrap.ps1
+.\scripts\run.ps1
+```
+
+### macOS/Linux
+```bash
+chmod +x ./scripts/bootstrap.sh ./scripts/run.sh
+./scripts/bootstrap.sh
+./scripts/run.sh
+```
+
+Альтернатива вручную:
+```bash
 python -m venv venv
-.\venv\Scripts\activate
+# Windows: .\venv\Scripts\activate
+# Mac/Linux: source venv/bin/activate
 pip install -r requirements.txt
-```
-
-## 2. Configure `.env`
-
-```powershell
-Copy-Item .env.example .env
-```
-
-Required:
-- `BOT_TOKEN`
-- `OLLAMA_API_URL`
-- `OLLAMA_MODEL`
-
-Recommended:
-- `DEFAULT_LANG=ru`
-- `STYLE_MODE=neutral` (`neutral` or `rogan_like`)
-- `LOG_LEVEL=INFO`
-- `ENABLE_CRYPTO_WATCHER=false`
-- `PRICE_CURRENCIES=usd,eur,rub`
-- `WEATHER_CITY=Moscow`
-- `HOME_ADDRESS=<your home address>`
-- `WORK_ADDRESS=<your work address>`
-- `FITNESS_VAULT_CHAT_ID=-100xxxxxxxxxx`
-- `FITNESS_ADMIN_USER_ID=<your_telegram_user_id>`
-- `ENABLE_AUTO_DIGEST=true`
-- `DIGEST_CHAT_ID=<your_telegram_chat_id>`
-- `DIGEST_TIMES=07:00,14:00,21:00`
-- `ENABLE_PREWARM=true`
-- `PREWARM_INTERVAL_SECONDS=600`
-- `BIRTH_DATE=15.12.1984`
-- `MOTO_SEASON_START=04-15`
-- `FEEDBACK_MIN_CHARS=280` (show 👍/👎 only for longer LLM replies)
-
-## 3. Run
-
-```powershell
+cp .env.example .env   # Windows: Copy-Item .env.example .env
 python bot.py
 ```
 
-## 4. Tests and checks
+## 5) Зависимости
+`requirements.txt` содержит минимальный runtime-набор:
+- `aiogram`
+- `httpx`
+- `aiohttp`
+- `python-dotenv`
 
-```powershell
-python -m unittest discover -s tests -v
-python -m compileall -q bot.py core services handlers crypto_watch.py db.py
+## 6) Настройка .env
+1. Скопируйте `.env.example` -> `.env`.
+2. Заполните минимум:
+- `BOT_TOKEN`
+- `OLLAMA_API_URL`
+- `OLLAMA_MODEL`
+3. Остальное можно оставить по умолчанию.
+
+## 7) Защита секретов и Git
+### Что сделано
+- `.env` и локальные артефакты игнорируются через `.gitignore`.
+- Добавлен сканер секретов: `scripts/check_secrets.py`.
+- Добавлен pre-commit hook: `.githooks/pre-commit`.
+
+### Как включить hook
+```bash
+git config core.hooksPath .githooks
 ```
 
-Smoke checks in Telegram:
-- `/help`
-- `/status`
-- `/price`
-- `/weather`
-- `/digest`
-- `/route`
-- `/fit`
-- `/reset`
+### Ручная проверка перед пушем
+```bash
+python scripts/check_secrets.py
+```
 
-## 5. Windows auto-start (Task Scheduler)
+## 8) Поток запроса (как идет сообщение)
+```text
+Telegram update
+  -> aiogram router (handlers/*)
+  -> handler-логика
+  -> service layer (tool-first / LLM / scheduler logic)
+  -> DB/cache (db.py) и/или внешние API
+  -> ответ пользователю
+```
 
-1. Open `Task Scheduler` -> `Create Task`.
-2. Trigger: `At startup`.
-3. Action:
-- Program: path to `venv\Scripts\python.exe`
-- Arguments: `bot.py`
-- Start in: project directory
-4. Enable restart on failure.
+Для обычного чата:
+```text
+message -> chat router
+  -> intent classifier (JSON)
+  -> (если tool-intent) assistant_tools_service
+  -> иначе advisor LLM
+  -> confidence gate / clarify
+  -> optional history persist
+```
 
-## 6. Release checklist
+## 9) Ключевые команды сейчас
+### Day OS core (рекомендуемое ядро)
+- `/today`
+- `/todo`
+- `/focus` (как целевой core-элемент; сейчас в проекте частично legacy/депрекейт)
+- `/checkin`
+- `/week`
+- `/decide`
+- `replan` (через кнопки в `/today`)
+- `weekly review` (`/weekly` + `/review week`)
 
-1. `.env` is not committed.
-2. Telegram token rotated if previously exposed.
-3. Tests are green.
-4. `/status` is OK for Ollama/CoinGecko/DB.
-5. Unknown slash commands are not persisted in history.
+### Операционные
+- `/start`, `/menu`, `/help`, `/status`, `/reset`, `/clean`
 
-## 7. Commands
+### Инфо-блок
+- `/price`, `/weather`, `/digest`, `/route`
 
-- `/price` - BTC/ETH in multiple currencies (`PRICE_CURRENCIES`)
-- `/weather` - current weather for `WEATHER_CITY`
-- `/digest` - daily digest (crypto + weather + headlines)
-- `/status` - service health (Core, Ollama, CoinGecko, CBR, DB)
-- `/route` - open route in Yandex Maps (home/work)
-- `/fit` - Fitness Vault (list/send/log workouts from private channel)
-- `/todo` - personal tasks (`add/list/done/del`)
-- `/today` - daily cockpit (top tasks + workout + weather)
-- `/mission` - Mission Control dashboard (risk + plan B + next step)
-- `/startnow` - anti-procrastination 5-minute launch
-- `/focus` - noise-fight focus block with debrief
-- `/autopilot` - toggle energy autopilot (`on|off`)
-- `/simulate day` - digital twin day simulator
-- `/premortem` - anti-failure analysis before key task
-- `/negotiate` - 3-tone negotiation copilot + red flags
-- `/life360` - weekly 6-zone life risk score
-- `/goal` - 90-day goal decomposition
-- `/drift` - anti-drift guard for strategic focus
-- `/futureme` - future-self advisory note
-- `/crisis` - 72h crisis mode (critical-only flow)
-- `/manual` - personal operating manual snapshot
-- `/decide` - Shadow Coach (risks/benefits/24h experiment)
-- `/rule` - if-then automations (`add/list/del/on/off`)
-- `/radar` - personal financial triggers (`add/list/check`)
-- `/state` - 10-15 minute situational protocol (`stress|lowenergy|overload`)
-- `/reflect` - concise evening reflection + rule for tomorrow
-- `/weekly` - weekly review + 3 focuses for next week
-- `/checkin` - evening check-in (`done/carry/energy`)
-- `/settings` - interactive personal settings (lang/TZ/city/digest/quiet/style)
-- `/export` - export CSV (`todo|fitness|subs|all`)
-- `/pro` - Pro status and available premium capabilities
-- `/profile` - show assistant memory profile
-- `/timeline` - show memory timeline (all or by key)
-- `/remember` - save user fact (`/remember city = Moscow`)
-- `/forget` - delete saved fact (`/forget city`)
-- `/reset` - clear conversation history
-- `/help` - command list
+### Дополнительно
+- `/fit`, `/score`, `/plan`, `/boardroom`, `/redteam`, `/scenario`, `/legend`, и др.
 
-## 8. Auto Digest
+## 10) Core vs Secondary модули
+### Core (держать в фокусе)
+- `handlers/ux_router.py` (today/week)
+- `handlers/commands.py` (todo/checkin/mode/confidence)
+- `handlers/chat.py` (LLM-контур)
+- `services/assistant_intent_service.py`
+- `services/assistant_tools_service.py`
+- `services/llm_service.py`
+- `db.py`
 
-If `ENABLE_AUTO_DIGEST=true` and `DIGEST_CHAT_ID` is set, bot sends digest automatically at times from `DIGEST_TIMES` (default `07:00,14:00,21:00`).
+### Secondary (поддерживать, но не расширять первым приоритетом)
+- `handlers/advanced_ops.py`
+- `handlers/fitness.py`
+- часть gamification внутри `handlers/ux_router.py`
 
-Morning slot (`07:00`) includes personalized intro using `BIRTH_DATE`.
-Digest also includes annual moto-season countdown based on `MOTO_SEASON_START`.
+## 11) Сокращение до ядра Day OS (рекомендация)
+### Оставить как core surface
+- `/today`, `/todo`, `/focus` (вернуть в полноценный core-контур), `/checkin`, `/week`, `/decide`, `/weekly`
 
-## 9. Performance & Fallback
+### Спрятать глубже (через /help или command center)
+- `/chronotwin`, `/boardroom`, `/legend`, `/life360`, `/futureme`, `/manual`, `/pro`, `/export`
 
-- Commands `/price`, `/weather`, `/digest`, `/status` log `duration_ms` as `event=command_done`.
-- External HTTP requests use shared async HTTP client (connection reuse).
-- Fallback cache is used only when fresh enough (up to ~180 minutes) for user-facing data.
-- Optional prewarm worker refreshes market/weather cache in background (`ENABLE_PREWARM`).
+### Временно заморозить (без удаления, без развития)
+- экзотические сценарные команды и часть геймификации, не влияющие на daily execution loop.
+
+## 12) Тесты
+```bash
+python -m unittest discover -s tests -p "test_*.py"
+```
+
+## 13) Multi-device workflow (рекомендуемый)
+1. Один Git-репозиторий + единый `main`.
+2. На каждом устройстве запускать `scripts/bootstrap.*`.
+3. Перед коммитом: `python scripts/check_secrets.py` + тесты.
+4. Разработка малыми PR/commit-блоками вокруг Day OS ядра.
