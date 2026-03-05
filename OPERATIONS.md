@@ -27,3 +27,19 @@
 ## Basic Health Checks
 - Use `/status` for Ollama/CoinGecko/DB quick checks.
 - Check logs for `event=api_error`, `event=crypto_worker_error`, `event=auto_digest_error`.
+
+## Day OS First Layer
+Command list exposed in Telegram menu is intentionally minimal:
+- `/start`
+- `/menu`
+- `/today`
+- `/todo`
+- `/focus`
+- `/checkin`
+- `/week`
+- `/review`
+- `/decide`
+
+Weekly compatibility:
+- canonical: `/week` + `/review week`
+- alias: `/weekly` (soft redirect)

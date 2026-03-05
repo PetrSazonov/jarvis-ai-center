@@ -1,10 +1,13 @@
 from datetime import datetime
+import json
 from dataclasses import replace
+from datetime import timedelta
 from uuid import uuid4
 
 from aiogram import F, Router, types
 
 from db import (
+    get_cache_value,
     get_conversation_history,
     memory_get,
     memory_build_context,
@@ -42,12 +45,237 @@ def _cache_key_last_assistant(user_id: int) -> str:
     return f"ux:last_assistant:{user_id}"
 
 
+def _cache_key_pending_clarify(user_id: int) -> str:
+    return f"chat:pending_clarify:{user_id}"
+
+
 def _remember_last_turn(*, user_id: int, user_text: str | None = None, assistant_text: str | None = None) -> None:
     now_iso = datetime.now().isoformat(timespec="seconds")
     if user_text:
         set_cache_value(_cache_key_last_user(user_id), user_text[:2000], now_iso)
     if assistant_text:
         set_cache_value(_cache_key_last_assistant(user_id), assistant_text[:3000], now_iso)
+
+
+def _set_pending_clarification(
+    *,
+    user_id: int,
+    original_user_query: str,
+    clarifying_question: str,
+    reason: str,
+) -> None:
+    payload = {
+        "pending_clarification": True,
+        "original_user_query": (original_user_query or "").strip()[:2000],
+        "clarifying_question": (clarifying_question or "").strip()[:600],
+        "reason": (reason or "unknown").strip()[:32],
+    }
+    set_cache_value(
+        _cache_key_pending_clarify(user_id),
+        json.dumps(payload, ensure_ascii=False),
+        datetime.now().isoformat(timespec="seconds"),
+    )
+
+
+def _clear_pending_clarification(user_id: int) -> None:
+    set_cache_value(
+        _cache_key_pending_clarify(user_id),
+        "",
+        datetime.now().isoformat(timespec="seconds"),
+    )
+
+
+def _get_pending_clarification(user_id: int) -> dict[str, str] | None:
+    row = get_cache_value(_cache_key_pending_clarify(user_id))
+    if not row or not row[0]:
+        return None
+    raw_value = str(row[0]).strip()
+    if not raw_value:
+        return None
+    try:
+        payload = json.loads(raw_value)
+    except json.JSONDecodeError:
+        return None
+    if not isinstance(payload, dict) or not bool(payload.get("pending_clarification")):
+        return None
+    original_user_query = str(payload.get("original_user_query") or "").strip()
+    if not original_user_query:
+        return None
+    updated_at_raw = str(row[1] or "").strip()
+    if updated_at_raw:
+        try:
+            updated_at = datetime.fromisoformat(updated_at_raw)
+            if datetime.now() - updated_at > timedelta(minutes=20):
+                _clear_pending_clarification(user_id)
+                return None
+        except ValueError:
+            pass
+    return {
+        "original_user_query": original_user_query,
+        "clarifying_question": str(payload.get("clarifying_question") or "").strip(),
+        "reason": str(payload.get("reason") or "").strip(),
+    }
+
+
+_CLARIFY_SHORT_ACKS = {
+    "да",
+    "нет",
+    "ага",
+    "угу",
+    "ок",
+    "окей",
+    "в целом",
+    "вообще",
+    "для меня",
+    "скорее",
+    "yes",
+    "no",
+    "ok",
+    "okay",
+    "in general",
+    "for me",
+}
+
+_CLARIFY_CONTEXT_MARKERS = (
+    "в целом",
+    "для меня",
+    "вообще",
+    "скорее",
+    "про ",
+    "о ",
+    "about ",
+    "for me",
+    "my ",
+)
+
+_NEW_TOPIC_PREFIXES = (
+    "сколько ",
+    "какой ",
+    "какая ",
+    "какие ",
+    "когда ",
+    "кто ",
+    "где ",
+    "куда ",
+    "как ",
+    "что ",
+    "почему ",
+    "зачем ",
+    "when ",
+    "what ",
+    "why ",
+    "how ",
+)
+
+_NEW_TOPIC_VERBS = (
+    "расскажи",
+    "покажи",
+    "сделай",
+    "дай",
+    "объясни",
+    "напиши",
+    "show",
+    "tell",
+    "give",
+    "explain",
+    "write",
+)
+
+_NEW_TOPIC_FACT_HINTS = (
+    "погода",
+    "курс",
+    "биткоин",
+    "btc",
+    "eth",
+    "доллар",
+    "евро",
+    "бензин",
+    "новост",
+    "date",
+    "time",
+    "weather",
+    "price",
+    "news",
+)
+
+
+def _looks_like_new_standalone_query(text: str) -> bool:
+    low = (text or "").strip().lower()
+    if not low:
+        return False
+    if low.startswith("/"):
+        return True
+    words = [w for w in low.split() if w]
+    if "?" in low:
+        return True
+    if low.startswith(_NEW_TOPIC_PREFIXES):
+        return True
+    if len(words) >= 8:
+        return True
+    if len(words) >= 2 and low.startswith(_NEW_TOPIC_VERBS):
+        return True
+    if len(words) >= 2 and any(marker in low for marker in _NEW_TOPIC_FACT_HINTS):
+        return True
+    return False
+
+
+def _is_contextual_clarification_reply(text: str) -> bool:
+    low = (text or "").strip().lower()
+    if not low:
+        return False
+    if _looks_like_new_standalone_query(low):
+        return False
+    if low in _CLARIFY_SHORT_ACKS:
+        return True
+    if any(marker in low for marker in _CLARIFY_CONTEXT_MARKERS):
+        return True
+    words = [w for w in low.split() if w]
+    return len(words) <= 5 and len(low) <= 48
+
+
+def _compose_clarified_query(*, original_query: str, clarification_reply: str, lang: str) -> str:
+    if lang == "en":
+        return f"{original_query}\n\nUser clarification: {clarification_reply}"
+    return f"{original_query}\n\nУточнение пользователя: {clarification_reply}"
+
+
+def _should_answer_with_general_caveat(text: str) -> bool:
+    low = (text or "").strip().lower()
+    if not low:
+        return False
+    words = [w for w in low.split() if w]
+    if len(words) < 3 or len(words) > 20:
+        return False
+    risk_markers = (
+        "диагноз",
+        "лечение",
+        "medical",
+        "юрид",
+        "закон",
+        "legal",
+        "инвест",
+        "кредит",
+        "finance",
+        "security",
+        "взлом",
+    )
+    fact_markers = (
+        "дата",
+        "время",
+        "курс",
+        "погода",
+        "новост",
+        "date",
+        "time",
+        "price",
+        "weather",
+        "news",
+    )
+    if any(marker in low for marker in risk_markers):
+        return False
+    if any(marker in low for marker in fact_markers):
+        return False
+    return True
 
 
 def _local_chat_fallback(text: str) -> str | None:
@@ -147,7 +375,8 @@ def build_chat_router(ctx: AppContext) -> Router:
     async def chat(message: types.Message) -> None:
         rid = _request_id()
         uid = message.from_user.id if message.from_user else 0
-        text = message.text or ""
+        raw_text = message.text or ""
+        text = raw_text
         profile = user_settings_get_full(uid) if uid > 0 else {}
         user_mode = str(profile.get("llm_mode") or "normal")
         show_confidence = bool(profile.get("show_confidence"))
@@ -161,8 +390,27 @@ def build_chat_router(ctx: AppContext) -> Router:
             weather_city=weather_city,
         )
         chips = memory_chips_markup() if uid > 0 else None
+        pending_clarification = _get_pending_clarification(uid) if uid > 0 else None
+        if uid > 0 and pending_clarification:
+            if _is_contextual_clarification_reply(raw_text):
+                text = _compose_clarified_query(
+                    original_query=pending_clarification["original_user_query"],
+                    clarification_reply=raw_text.strip(),
+                    lang=lang,
+                )
+                ctx.logger.info(
+                    "event=clarify_merge request_id=%s user_id=%s reason=%s",
+                    rid,
+                    uid,
+                    pending_clarification.get("reason", "unknown"),
+                )
+            else:
+                ctx.logger.info("event=clarify_clear_new_topic request_id=%s user_id=%s", rid, uid)
+            _clear_pending_clarification(uid)
         if uid > 0:
-            _remember_last_turn(user_id=uid, user_text=text)
+            _remember_last_turn(user_id=uid, user_text=raw_text)
+            if text != raw_text:
+                _remember_last_turn(user_id=uid, user_text=text)
 
         if uid > 0 and bool(profile.get("cognitive_profile", True)):
             suggested_style, suggested_density = _adaptive_profile_suggestion(text)
@@ -195,9 +443,13 @@ def build_chat_router(ctx: AppContext) -> Router:
         )
 
         if decision.route_type in {RouteType.KNOWN_COMMAND, RouteType.EMPTY}:
+            if uid > 0:
+                _clear_pending_clarification(uid)
             return
 
         if decision.route_type == RouteType.DATE_TIME:
+            if uid > 0:
+                _clear_pending_clarification(uid)
             line1, line2 = format_now_lines(runtime_settings.timezone_name, lang)
             await message.reply(f"{line1}\n{line2}")
             return
@@ -214,6 +466,14 @@ def build_chat_router(ctx: AppContext) -> Router:
                 clarify = f"{t(lang, 'chat_clarify_prefix')}\n{intent.clarifying_question}"
                 if show_confidence:
                     clarify = f"{clarify}\n\n{t(lang, 'chat_confidence_line', score=intent.confidence)}"
+                if uid > 0:
+                    _set_pending_clarification(
+                        user_id=uid,
+                        original_user_query=raw_text,
+                        clarifying_question=intent.clarifying_question,
+                        reason="intent",
+                    )
+                    _remember_last_turn(user_id=uid, assistant_text=clarify)
                 await message.reply(clarify, reply_markup=chips)
                 return
 
@@ -230,6 +490,7 @@ def build_chat_router(ctx: AppContext) -> Router:
                     if show_confidence:
                         text_out = f"{text_out}\n\n{t(lang, 'chat_confidence_line', score=intent.confidence)}"
                     if uid > 0:
+                        _clear_pending_clarification(uid)
                         _remember_last_turn(user_id=uid, assistant_text=text_out)
                     await message.reply(
                         text_out,
@@ -324,19 +585,32 @@ def build_chat_router(ctx: AppContext) -> Router:
         )
         threshold = _confidence_threshold(user_mode)
         if confidence < threshold and need_clarify:
-            clarify = _clarifying_question(text, lang)
-            if show_confidence:
-                clarify = f"{t(lang, 'chat_clarify_prefix')}\n{clarify}\n\n{t(lang, 'chat_confidence_line', score=confidence)}"
+            if _should_answer_with_general_caveat(raw_text):
+                if lang == "en":
+                    llm_response = f"In general: {llm_response}"
+                else:
+                    llm_response = f"Если в целом: {llm_response}"
             else:
-                clarify = f"{t(lang, 'chat_clarify_prefix')}\n{clarify}"
-            if uid > 0:
-                _remember_last_turn(user_id=uid, assistant_text=clarify)
-            await message.reply(clarify, reply_markup=chips)
-            return
+                clarify = _clarifying_question(text, lang)
+                if show_confidence:
+                    clarify = f"{t(lang, 'chat_clarify_prefix')}\n{clarify}\n\n{t(lang, 'chat_confidence_line', score=confidence)}"
+                else:
+                    clarify = f"{t(lang, 'chat_clarify_prefix')}\n{clarify}"
+                if uid > 0:
+                    _set_pending_clarification(
+                        user_id=uid,
+                        original_user_query=raw_text,
+                        clarifying_question=clarify,
+                        reason="quality",
+                    )
+                    _remember_last_turn(user_id=uid, assistant_text=clarify)
+                await message.reply(clarify, reply_markup=chips)
+                return
 
         if show_confidence:
             llm_response = f"{llm_response}\n\n{t(lang, 'chat_confidence_line', score=confidence)}"
         if uid > 0:
+            _clear_pending_clarification(uid)
             active_session = memory_get(user_id=uid, key="active_session")
             if active_session:
                 llm_response = f"{llm_response}\n\n🧵 Session: {active_session}"

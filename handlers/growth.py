@@ -54,8 +54,7 @@ def build_growth_router(ctx: AppContext) -> Router:
             return
         text = (message.text or "").strip()
         parts = text.split(maxsplit=1)
-        horizon = parts[1] if len(parts) > 1 else "day"
+        horizon = parts[1] if len(parts) > 1 else "week"
         await message.reply(build_review_text(user_id=user_id, horizon=horizon, lang=lang))
 
     return router
-

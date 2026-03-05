@@ -125,15 +125,21 @@ message -> chat router
 ```
 
 ## 9) Ключевые команды сейчас
-### Day OS core (рекомендуемое ядро)
+### Первый слой (Core-first)
+- `/start`
+- `/menu`
 - `/today`
 - `/todo`
-- `/focus` (как целевой core-элемент; сейчас в проекте частично legacy/депрекейт)
+- `/focus`
 - `/checkin`
 - `/week`
+- `/review`
 - `/decide`
-- `replan` (через кнопки в `/today`)
-- `weekly review` (`/weekly` + `/review week`)
+
+### Канонический weekly flow
+- `/week` — weekly dashboard
+- `/review week` — weekly review
+- `/weekly` — backward-compatible alias (мягкая переадресация)
 
 ### Операционные
 - `/start`, `/menu`, `/help`, `/status`, `/reset`, `/clean`
@@ -159,9 +165,9 @@ message -> chat router
 - `handlers/fitness.py`
 - часть gamification внутри `handlers/ux_router.py`
 
-## 11) Сокращение до ядра Day OS (рекомендация)
-### Оставить как core surface
-- `/today`, `/todo`, `/focus` (вернуть в полноценный core-контур), `/checkin`, `/week`, `/decide`, `/weekly`
+## 11) Сокращение до ядра Day OS (статус)
+### Core surface
+- `/today`, `/todo`, `/focus`, `/checkin`, `/week`, `/review week`, `/decide`
 
 ### Спрятать глубже (через /help или command center)
 - `/chronotwin`, `/boardroom`, `/legend`, `/life360`, `/futureme`, `/manual`, `/pro`, `/export`

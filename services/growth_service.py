@@ -466,6 +466,9 @@ def _review_week(*, user_id: int, lang: str, today: date) -> str:
             f"Следующая коррекция: {_next_action_for_metric(weakest_metric_key(current), lang)}",
             f"Next correction: {_next_action_for_metric(weakest_metric_key(current), lang)}",
         ),
+        "",
+        _lang(lang, "Review завершен.", "Review complete."),
+        _lang(lang, "Следующий шаг: /today — применить выводы в новом дне.", "Next step: /today — apply insights in the new day."),
     ]
     return "\n".join(lines)
 
@@ -519,4 +522,3 @@ def build_review_text(*, user_id: int, horizon: str, lang: str = "ru", today: da
         "Формат: /review day | week | month",
         "Format: /review day | week | month",
     )
-

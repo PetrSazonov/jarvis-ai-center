@@ -137,8 +137,8 @@ class GrowthServiceTests(unittest.TestCase):
         self.assertIn("План на день", text_plan)
         self.assertIn("MIT:", text_plan)
         self.assertIn("Review: неделя", text_review)
+        self.assertIn("/today", text_review)
 
 
 if __name__ == "__main__":
     unittest.main()
-

@@ -99,6 +99,20 @@ def _rescue_markup() -> InlineKeyboardMarkup:
     )
 
 
+def _focus_entry_markup() -> InlineKeyboardMarkup:
+    return InlineKeyboardMarkup(
+        inline_keyboard=[
+            [
+                InlineKeyboardButton(text="Start 25m", callback_data="ux:sprint:start:25"),
+                InlineKeyboardButton(text="Start 45m", callback_data="ux:sprint:start:45"),
+            ],
+            [
+                InlineKeyboardButton(text="Session", callback_data="ux:session:show:0"),
+            ],
+        ]
+    )
+
+
 def _digest_key(user_id: int) -> str:
     return f"ux:digest:{user_id}"
 
@@ -230,7 +244,13 @@ def _build_today_text(user_id: int) -> tuple[str, bool, int | None]:
     if rescue_needed_today(user_id=user_id):
         lines.extend(["", "🛟 Спасение стрика: /rescue (3-7 минут)."])
 
-    lines.extend(["", "Действия: Done • Start 25m • Replan • Mood • Focus"])
+    lines.extend(
+        [
+            "",
+            "Маршрут дня: /todo -> /focus -> /checkin",
+            "Быстрые действия: Done • Start 25m • Replan • Mood",
+        ]
+    )
     return "\n".join(lines), bool(open_todos), workout_id
 
 
@@ -291,7 +311,8 @@ def _build_week_screens(user_id: int) -> list[str]:
     )
     screens = build_week_playback_screens(metrics)
     screens.append(build_cinematic_weekly_recap(user_id=user_id))
-    return screens
+    route_hint = "\n\nСледующий шаг:\n/review week — weekly review\n/today — новый дневной цикл"
+    return [f"{screen}{route_hint}" for screen in screens]
 
 
 def build_ux_router(ctx: AppContext) -> Router:
@@ -374,6 +395,16 @@ def build_ux_router(ctx: AppContext) -> Router:
         if user_id > 0:
             text, has_todo, workout_id = _build_today_text(user_id)
             await message.reply(text, reply_markup=today_panel_markup(has_todo=has_todo, workout_id=workout_id))
+
+    @router.message(Command("focus"))
+    async def focus_command(message: types.Message) -> None:
+        user_id = message.from_user.id if message.from_user else 0
+        if user_id <= 0:
+            return
+        await message.reply(
+            "Focus mode: choose sprint length and run one task without context switching.",
+            reply_markup=_focus_entry_markup(),
+        )
 
     @router.message(Command("digest"))
     async def digest_command(message: types.Message) -> None:

@@ -1,4 +1,4 @@
-import asyncio
+﻿import asyncio
 import json
 import math
 import re
@@ -77,68 +77,94 @@ LLM_GUIDED_COMMANDS = {
     "radar",
     "state",
     "reflect",
-    "weekly",
     "export",
     "pro",
 }
 
 
+# Core-first command center overrides.
 _COMMAND_CENTER_ROOT_TEXT = {
-    "ru": "<b>Командный центр</b>\nВыберите раздел.",
+    "ru": "<b>Day OS Menu</b>\nCore-first navigation.",
     "en": "<b>Command Center</b>\nPick a section.",
 }
 
 _COMMAND_CENTER_ROOT_ROWS = {
     "ru": [
-        [("🧭 База", "cmd:center:core"), ("✅ Личное", "cmd:center:personal")],
-        [("🏋️ Фитнес", "cmd:center:fit"), ("📈 Рост", "cmd:center:growth")],
-        [("🤖 AI", "cmd:center:ai"), ("⚙️ Система", "cmd:center:system")],
+        [("Core / День", "cmd:center:core"), ("Advanced", "cmd:center:advanced")],
+        [("Tools / Info", "cmd:center:tools")],
     ],
     "en": [
-        [("🧭 Core", "cmd:center:core"), ("✅ Personal", "cmd:center:personal")],
-        [("🏋️ Fitness", "cmd:center:fit"), ("📈 Growth", "cmd:center:growth")],
-        [("🤖 AI", "cmd:center:ai"), ("⚙️ System", "cmd:center:system")],
+        [("Core / Day", "cmd:center:core"), ("Advanced", "cmd:center:advanced")],
+        [("Tools / Info", "cmd:center:tools")],
     ],
 }
 
 _COMMAND_CENTER_SECTIONS = {
     "ru": {
-        "core": "<b>🧭 База</b>\n<code>/today</code> фокус дня\n<code>/digest</code> дайджест\n<code>/price</code> рынок\n<code>/weather</code> погода\n<code>/route</code> маршрут",
-        "personal": "<b>✅ Личное</b>\n<code>/todo</code> задачи\n<code>/checkin</code> вечерний итог\n<code>/subs</code> подписки\n<code>/session</code> контекст Work/Fitness/Finance",
-        "fit": "<b>🏋️ Фитнес</b>\n<code>/fit</code> меню тренировок\n<code>/fit today</code> тренировка дня\n<code>/fit week</code> неделя\n<code>/fit stats</code> статистика",
-        "growth": "<b>📈 Рост</b>\n<code>/mission</code> командный центр дня\n<code>/score</code> метрики\n<code>/plan day|week|month|year</code>\n<code>/review day|week|month</code>\n<code>/week</code> реплей недели",
-        "ai": "<b>🤖 AI</b>\n<code>/decide</code> решение\n<code>/premortem</code> анти-провал\n<code>/simulate</code> сценарии дня\n<code>/futureme</code> взгляд из будущего\n<code>/boardroom</code> совет версий себя",
-        "system": "<b>⚙️ Система</b>\n<code>/settings</code> профиль\n<code>/mode</code> fast|normal|precise\n<code>/confidence</code> on|off\n<code>/status</code> здоровье сервисов\n<code>/clean</code> очистка чата",
+        "core": (
+            "<b>Core / День</b>\n"
+            "<code>/today</code> старт дня\n"
+            "<code>/todo</code> задачи\n"
+            "<code>/focus</code> фокус-сессия\n"
+            "<code>/checkin</code> фиксация дня\n"
+            "<code>/week</code> обзор недели\n"
+            "<code>/review week</code> weekly review\n"
+            "<code>/decide</code> помощь с решением"
+        ),
+        "advanced": (
+            "<b>Advanced</b>\n"
+            "<code>/fit</code>, <code>/subs</code>, <code>/score</code>, <code>/plan</code>, <code>/session</code>\n"
+            "<code>/settings</code>, <code>/mode</code>, <code>/confidence</code>\n"
+            "<code>/weekly</code> - alias -> <code>/review week</code>"
+        ),
+        "tools": (
+            "<b>Tools / Info</b>\n"
+            "<code>/price</code>, <code>/weather</code>, <code>/digest</code>, <code>/route</code>, <code>/status</code>"
+        ),
     },
     "en": {
-        "core": "<b>🧭 Core</b>\n<code>/today</code> day focus\n<code>/digest</code> digest\n<code>/price</code> market\n<code>/weather</code> weather\n<code>/route</code> route",
-        "personal": "<b>✅ Personal</b>\n<code>/todo</code> tasks\n<code>/checkin</code> daily check-in\n<code>/subs</code> subscriptions\n<code>/session</code> Work/Fitness/Finance context",
-        "fit": "<b>🏋️ Fitness</b>\n<code>/fit</code> workouts menu\n<code>/fit today</code> workout of the day\n<code>/fit week</code> week view\n<code>/fit stats</code> stats",
-        "growth": "<b>📈 Growth</b>\n<code>/mission</code> daily command center\n<code>/score</code> metrics\n<code>/plan day|week|month|year</code>\n<code>/review day|week|month</code>\n<code>/week</code> week replay",
-        "ai": "<b>🤖 AI</b>\n<code>/decide</code> decisions\n<code>/premortem</code> failure prevention\n<code>/simulate</code> day scenarios\n<code>/futureme</code> future-self view\n<code>/boardroom</code> future boardroom",
-        "system": "<b>⚙️ System</b>\n<code>/settings</code> profile\n<code>/mode</code> fast|normal|precise\n<code>/confidence</code> on|off\n<code>/status</code> services health\n<code>/clean</code> clear chat",
+        "core": (
+            "<b>Core / Day</b>\n"
+            "<code>/today</code> start day\n"
+            "<code>/todo</code> tasks\n"
+            "<code>/focus</code> focus session\n"
+            "<code>/checkin</code> daily log\n"
+            "<code>/week</code> week dashboard\n"
+            "<code>/review week</code> weekly review\n"
+            "<code>/decide</code> decision support"
+        ),
+        "advanced": (
+            "<b>Advanced</b>\n"
+            "<code>/fit</code>, <code>/subs</code>, <code>/score</code>, <code>/plan</code>, <code>/session</code>\n"
+            "<code>/settings</code>, <code>/mode</code>, <code>/confidence</code>\n"
+            "<code>/weekly</code> - alias -> <code>/review week</code>"
+        ),
+        "tools": (
+            "<b>Tools / Info</b>\n"
+            "<code>/price</code>, <code>/weather</code>, <code>/digest</code>, <code>/route</code>, <code>/status</code>"
+        ),
     },
 }
 
 _TODO_PANEL_ROWS = {
     "ru": [
-        [("📋 Список", "cmd:todo:list"), ("✅ Закрыть верхнюю", "cmd:todo:done_top")],
-        [("🗑 Удалить верхнюю", "cmd:todo:del_top"), ("➕ Как добавить", "cmd:todo:add_hint")],
+        [("Список", "cmd:todo:list"), ("Готово top", "cmd:todo:done_top")],
+        [("Удалить top", "cmd:todo:del_top"), ("Как добавить", "cmd:todo:add_hint")],
     ],
     "en": [
-        [("📋 List", "cmd:todo:list"), ("✅ Complete top", "cmd:todo:done_top")],
-        [("🗑 Delete top", "cmd:todo:del_top"), ("➕ How to add", "cmd:todo:add_hint")],
+        [("List", "cmd:todo:list"), ("Done top", "cmd:todo:done_top")],
+        [("Delete top", "cmd:todo:del_top"), ("How to add", "cmd:todo:add_hint")],
     ],
 }
 
 _SUBS_PANEL_ROWS = {
     "ru": [
-        [("📋 Список", "cmd:subs:list"), ("⏰ Ближайшие", "cmd:subs:check")],
-        [("➕ Как добавить", "cmd:subs:add_hint")],
+        [("Список", "cmd:subs:list"), ("Проверка", "cmd:subs:check")],
+        [("Как добавить", "cmd:subs:add_hint")],
     ],
     "en": [
-        [("📋 List", "cmd:subs:list"), ("⏰ Due soon", "cmd:subs:check")],
-        [("➕ How to add", "cmd:subs:add_hint")],
+        [("List", "cmd:subs:list"), ("Check", "cmd:subs:check")],
+        [("How to add", "cmd:subs:add_hint")],
     ],
 }
 
@@ -185,9 +211,9 @@ def _is_cache_fresh(ts: str | None, *, ttl_minutes: int = 180) -> bool:
 
 def _fmt_change(change: float | None) -> str:
     if change is None:
-        return "⚪️ н/д"
+        return "вљЄпёЏ РЅ/Рґ"
     value = float(change)
-    icon = "🟢" if value > 0 else "🔴" if value < 0 else "⚪️"
+    icon = "рџџў" if value > 0 else "рџ”ґ" if value < 0 else "вљЄпёЏ"
     return f"{icon} {value:+.1f}%"
 
 
@@ -234,14 +260,12 @@ def _profile_runtime_settings(ctx: AppContext, user_id: int) -> tuple[object, di
 def _menu_markup() -> ReplyKeyboardMarkup:
     return ReplyKeyboardMarkup(
         keyboard=[
-            [KeyboardButton(text="/today"), KeyboardButton(text="/digest"), KeyboardButton(text="/price")],
-            [KeyboardButton(text="/weather"), KeyboardButton(text="/fit"), KeyboardButton(text="/subs")],
-            [KeyboardButton(text="/todo list"), KeyboardButton(text="/route"), KeyboardButton(text="/status")],
-            [KeyboardButton(text="/help")],
+            [KeyboardButton(text="/today"), KeyboardButton(text="/todo"), KeyboardButton(text="/focus")],
+            [KeyboardButton(text="/checkin"), KeyboardButton(text="/week"), KeyboardButton(text="/review week")],
+            [KeyboardButton(text="/decide"), KeyboardButton(text="/menu"), KeyboardButton(text="/help")],
         ],
         resize_keyboard=True,
     )
-
 
 def _command_center_root_markup(lang: str) -> InlineKeyboardMarkup:
     return _callback_markup(_COMMAND_CENTER_ROOT_ROWS[_lang_key(lang)])
@@ -254,30 +278,29 @@ def _command_center_section_text(section: str, lang: str) -> str:
 
 def _command_center_section_markup(section: str, lang: str) -> InlineKeyboardMarkup:
     rows: list[list[tuple[str, str]]] = []
-    if section == "fit":
-        rows.append([("🏋️ Открыть Fit" if lang == "ru" else "🏋️ Open Fit", "fit:menu:0")])
-    elif section == "personal":
+    if section == "core":
+        rows.append([("TODO", "cmd:todo:list")])
+    elif section == "advanced":
         rows.append(
             [
-                ("📋 TODO", "cmd:todo:list"),
-                ("🧾 Подписки" if lang == "ru" else "🧾 Subs", "cmd:subs:list"),
+                ("/fit", "fit:menu:0"),
+                ("/subs", "cmd:subs:list"),
             ]
         )
-    rows.append([("⬅️ Разделы" if lang == "ru" else "⬅️ Sections", "cmd:center:root")])
+    rows.append([("Sections", "cmd:center:root")])
     return _callback_markup(rows)
-
 
 def _route_markup(lang: str) -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(
         inline_keyboard=[
             [
-                InlineKeyboardButton(text=("🏠 Дом" if lang == "ru" else "🏠 Home"), url=f"https://yandex.ru/maps/?rtext=~{quote_plus(f'{HOME_COORDS[0]:.6f},{HOME_COORDS[1]:.6f}')}&rtt=auto"),
-                InlineKeyboardButton(text=("🏢 Работа" if lang == "ru" else "🏢 Work"), url=f"https://yandex.ru/maps/?rtext=~{quote_plus(f'{WORK_COORDS[0]:.6f},{WORK_COORDS[1]:.6f}')}&rtt=auto"),
+                InlineKeyboardButton(text=("рџЏ  Р”РѕРј" if lang == "ru" else "рџЏ  Home"), url=f"https://yandex.ru/maps/?rtext=~{quote_plus(f'{HOME_COORDS[0]:.6f},{HOME_COORDS[1]:.6f}')}&rtt=auto"),
+                InlineKeyboardButton(text=("рџЏў Р Р°Р±РѕС‚Р°" if lang == "ru" else "рџЏў Work"), url=f"https://yandex.ru/maps/?rtext=~{quote_plus(f'{WORK_COORDS[0]:.6f},{WORK_COORDS[1]:.6f}')}&rtt=auto"),
             ],
-            [InlineKeyboardButton(text=("📍 Ввести адрес" if lang == "ru" else "📍 Enter address"), url="https://yandex.ru/maps/?rtext=~&rtt=auto")],
+            [InlineKeyboardButton(text=("рџ“Ќ Р’РІРµСЃС‚Рё Р°РґСЂРµСЃ" if lang == "ru" else "рџ“Ќ Enter address"), url="https://yandex.ru/maps/?rtext=~&rtt=auto")],
             [
-                InlineKeyboardButton(text=("⏱ ETA Дом" if lang == "ru" else "⏱ ETA Home"), callback_data="route:eta:home"),
-                InlineKeyboardButton(text=("⏱ ETA Работа" if lang == "ru" else "⏱ ETA Work"), callback_data="route:eta:work"),
+                InlineKeyboardButton(text=("вЏ± ETA Р”РѕРј" if lang == "ru" else "вЏ± ETA Home"), callback_data="route:eta:home"),
+                InlineKeyboardButton(text=("вЏ± ETA Р Р°Р±РѕС‚Р°" if lang == "ru" else "вЏ± ETA Work"), callback_data="route:eta:work"),
             ],
         ]
     )
@@ -318,7 +341,7 @@ def _trim_text(value: str, max_len: int = 90) -> str:
     clean = " ".join((value or "").split())
     if len(clean) <= max_len:
         return clean
-    return clean[: max_len - 1].rstrip() + "…"
+    return clean[: max_len - 1].rstrip() + "вЂ¦"
 
 
 def _todo_render(user_id: int, lang: str) -> str:
@@ -350,30 +373,30 @@ def _render_subs_list(user_id: int, lang: str) -> str:
             due = date.fromisoformat(str(next_date))
             delta = (due - today).days
             if delta >= 0:
-                left = f"{delta} дн." if lang == "ru" else f"{delta}d"
+                left = f"{delta} РґРЅ." if lang == "ru" else f"{delta}d"
             else:
                 late = abs(delta)
-                left = f"просрочено {late} дн." if lang == "ru" else f"overdue {late}d"
+                left = f"РїСЂРѕСЃСЂРѕС‡РµРЅРѕ {late} РґРЅ." if lang == "ru" else f"overdue {late}d"
         except ValueError:
             left = str(next_date)
-        lines.append(f"#{sub_id} {_trim_text(str(name), 42)} — {next_date} ({period}, {left})")
+        lines.append(f"#{sub_id} {_trim_text(str(name), 42)} вЂ” {next_date} ({period}, {left})")
     return "\n".join(lines)
 
 
 def _render_subs_check(user_id: int, lang: str) -> str:
     rows = subs_due_within(user_id=user_id, days=7)
     if not rows:
-        return t(lang, "subs_check_title") + "\n\n" + ("Критичных списаний в ближайшие 7 дней нет." if lang == "ru" else "No due subscriptions in next 7 days.")
+        return t(lang, "subs_check_title") + "\n\n" + ("РљСЂРёС‚РёС‡РЅС‹С… СЃРїРёСЃР°РЅРёР№ РІ Р±Р»РёР¶Р°Р№С€РёРµ 7 РґРЅРµР№ РЅРµС‚." if lang == "ru" else "No due subscriptions in next 7 days.")
     lines = [t(lang, "subs_check_title")]
     today = date.today()
     for sub_id, name, next_date, period in rows:
         try:
             due = date.fromisoformat(str(next_date))
             delta = (due - today).days
-            days_text = f"{delta} дн." if lang == "ru" else f"{delta}d"
+            days_text = f"{delta} РґРЅ." if lang == "ru" else f"{delta}d"
         except ValueError:
             days_text = str(next_date)
-        lines.append(f"#{sub_id} {_trim_text(str(name), 42)} — {next_date} ({period}, {days_text})")
+        lines.append(f"#{sub_id} {_trim_text(str(name), 42)} вЂ” {next_date} ({period}, {days_text})")
     return "\n".join(lines)
 
 
@@ -405,10 +428,10 @@ def _clear_route_target(user_id: int) -> None:
 
 
 def _route_location_markup(lang: str) -> ReplyKeyboardMarkup:
-    cancel_label = "Отмена ETA" if lang == "ru" else "Cancel ETA"
+    cancel_label = "РћС‚РјРµРЅР° ETA" if lang == "ru" else "Cancel ETA"
     return ReplyKeyboardMarkup(
         keyboard=[
-            [KeyboardButton(text="📍 " + ("Отправить геолокацию" if lang == "ru" else "Send location"), request_location=True)],
+            [KeyboardButton(text="рџ“Ќ " + ("РћС‚РїСЂР°РІРёС‚СЊ РіРµРѕР»РѕРєР°С†РёСЋ" if lang == "ru" else "Send location"), request_location=True)],
             [KeyboardButton(text=cancel_label)],
         ],
         resize_keyboard=True,
@@ -429,13 +452,13 @@ def _parse_checkin_payload(payload: str) -> tuple[str, str, int | None] | None:
         key, value = part.split("=", 1)
         key = key.strip().lower()
         value = value.strip()
-        if key in {"done", "сделал"}:
+        if key in {"done", "СЃРґРµР»Р°Р»"}:
             recognized = True
             done_text = value
-        elif key in {"carry", "перенос"}:
+        elif key in {"carry", "РїРµСЂРµРЅРѕСЃ"}:
             recognized = True
             carry_text = value
-        elif key in {"energy", "энергия"}:
+        elif key in {"energy", "СЌРЅРµСЂРіРёСЏ"}:
             recognized = True
             try:
                 parsed = int(value)
@@ -505,7 +528,6 @@ def build_commands_router(ctx: AppContext) -> Router:
         row = get_cache_value(f"user:start_seen:{uid}")
         seen = bool(row and row[0] == "1")
         await message.reply(t(lang, "start_back") if seen else t(lang, "start_welcome"), parse_mode="HTML", reply_markup=_menu_markup())
-        await _send_command_center(message, lang)
         if uid > 0 and not seen:
             set_cache_value(f"user:start_seen:{uid}", "1", _now_iso())
 
@@ -582,19 +604,19 @@ def build_commands_router(ctx: AppContext) -> Router:
             btc = cg.get("bitcoin", {})
             eth = cg.get("ethereum", {})
             code = runtime.coingecko_vs.upper()
-            lines.append(f"{t(lang, 'market_btc')}: {code} {float(btc.get(runtime.coingecko_vs, 0)):.2f} | 24ч {_fmt_change(btc.get(f'{runtime.coingecko_vs}_24h_change'))}")
-            lines.append(f"{t(lang, 'market_eth')}: {code} {float(eth.get(runtime.coingecko_vs, 0)):.2f} | 24ч {_fmt_change(eth.get(f'{runtime.coingecko_vs}_24h_change'))}")
+            lines.append(f"{t(lang, 'market_btc')}: {code} {float(btc.get(runtime.coingecko_vs, 0)):.2f} | 24С‡ {_fmt_change(btc.get(f'{runtime.coingecko_vs}_24h_change'))}")
+            lines.append(f"{t(lang, 'market_eth')}: {code} {float(eth.get(runtime.coingecko_vs, 0)):.2f} | 24С‡ {_fmt_change(eth.get(f'{runtime.coingecko_vs}_24h_change'))}")
             _cache_set_json("price_cache:coingecko", cg)
         else:
             errs.append("CoinGecko")
         if not isinstance(fx, Exception):
-            lines.append(f"{t(lang, 'market_usd_rub')}: RUB {float(fx.get('usd_rub', 0)):.2f} | 24ч {_fmt_change(fx.get('usd_rub_24h_change'))}")
-            lines.append(f"{t(lang, 'market_eur_rub')}: RUB {float(fx.get('eur_rub', 0)):.2f} | 24ч {_fmt_change(fx.get('eur_rub_24h_change'))}")
+            lines.append(f"{t(lang, 'market_usd_rub')}: RUB {float(fx.get('usd_rub', 0)):.2f} | 24С‡ {_fmt_change(fx.get('usd_rub_24h_change'))}")
+            lines.append(f"{t(lang, 'market_eur_rub')}: RUB {float(fx.get('eur_rub', 0)):.2f} | 24С‡ {_fmt_change(fx.get('eur_rub_24h_change'))}")
             _cache_set_json("price_cache:fx", fx)
         else:
             errs.append("FX")
         if not isinstance(fuel, Exception):
-            lines.append(f"{t(lang, 'market_fuel95')}: RUB {float(fuel.get('price_rub') or 0):.2f} | 24ч {_fmt_change(fuel.get('change_24h_pct'))}")
+            lines.append(f"{t(lang, 'market_fuel95')}: RUB {float(fuel.get('price_rub') or 0):.2f} | 24С‡ {_fmt_change(fuel.get('change_24h_pct'))}")
             _cache_set_json("price_cache:fuel95", fuel)
         else:
             errs.append("Fuel95")
@@ -646,7 +668,7 @@ def build_commands_router(ctx: AppContext) -> Router:
         price_row = get_cache_value("price_cache:coingecko")
         weather_row = get_cache_value("weather_cache:summary")
         def dot(ok: bool) -> str:
-            return "🟢" if ok else "🔴"
+            return "рџџў" if ok else "рџ”ґ"
 
         lines = [
             t(lang, "status_title"),
@@ -658,7 +680,7 @@ def build_commands_router(ctx: AppContext) -> Router:
             f"{dot(fit_ok)} Fitness ({fit_note})",
             "",
             (
-                f"Кэш: рынок {'свежий' if _is_cache_fresh(price_row[1] if price_row else None) else 'нет'}, погода {'свежая' if _is_cache_fresh(weather_row[1] if weather_row else None) else 'нет'}"
+                f"РљСЌС€: СЂС‹РЅРѕРє {'СЃРІРµР¶РёР№' if _is_cache_fresh(price_row[1] if price_row else None) else 'РЅРµС‚'}, РїРѕРіРѕРґР° {'СЃРІРµР¶Р°СЏ' if _is_cache_fresh(weather_row[1] if weather_row else None) else 'РЅРµС‚'}"
                 if lang == "ru"
                 else f"Cache: market {'fresh' if _is_cache_fresh(price_row[1] if price_row else None) else 'none'}, weather {'fresh' if _is_cache_fresh(weather_row[1] if weather_row else None) else 'none'}"
             ),
@@ -718,14 +740,14 @@ def build_commands_router(ctx: AppContext) -> Router:
             dst_lat=dst_lat,
             dst_lon=dst_lon,
         )
-        title = "Дом" if (target == "home" and lang == "ru") else "Работа" if lang == "ru" else "Home" if target == "home" else "Work"
+        title = "Р”РѕРј" if (target == "home" and lang == "ru") else "Р Р°Р±РѕС‚Р°" if lang == "ru" else "Home" if target == "home" else "Work"
         await message.reply(
             t(lang, "route_eta_done", title=title, minutes=eta_min),
             reply_markup=ReplyKeyboardRemove(),
         )
         _clear_route_target(uid)
 
-    @router.message(F.text.in_({"Отмена ETA", "Cancel ETA"}))
+    @router.message(F.text.in_({"РћС‚РјРµРЅР° ETA", "Cancel ETA"}))
     async def route_eta_cancel(message: types.Message) -> None:
         uid = message.from_user.id if message.from_user else 0
         _runtime, _profile, lang = _profile_runtime_settings(ctx, uid)
@@ -770,7 +792,7 @@ def build_commands_router(ctx: AppContext) -> Router:
             return
 
         if action == "add_hint":
-            hint = "/todo add <текст>" if lang == "ru" else "/todo add <text>"
+            hint = "/todo add <С‚РµРєСЃС‚>" if lang == "ru" else "/todo add <text>"
             if callback.message:
                 await callback.message.reply(hint, reply_markup=panel)
             await callback.answer("", show_alert=False)
@@ -810,26 +832,23 @@ def build_commands_router(ctx: AppContext) -> Router:
 
         await callback.answer("", show_alert=False)
 
-    @router.message(F.text.regexp(r"^/(mode|confidence|settings|autopilot|focus|todo|subs|checkin|remember|forget|profile|timeline)(?:@\w+)?(?:\s|$)"))
+    @router.message(F.text.regexp(r"^/(mode|confidence|settings|autopilot|todo|subs|checkin|remember|forget|profile|timeline)(?:@\w+)?(?:\s|$)"))
     async def basic_text_cmds(message: types.Message) -> None:
         uid = message.from_user.id if message.from_user else 0
         runtime, profile, lang = _profile_runtime_settings(ctx, uid)
         raw = (message.text or "").strip()
         parts = raw.split(maxsplit=2)
         cmd = extract_command(raw) or ""
-        if cmd == "focus":
-            await message.reply(t(lang, "focus_deprecated"))
-            return
         if cmd == "autopilot":
             arg = parts[1].lower() if len(parts) > 1 else ("on" if bool(profile.get("energy_autopilot", True)) else "off")
             if arg in {"on", "off"}:
                 user_settings_set_energy_autopilot(user_id=uid, enabled=(arg == "on"), updated_at=_now_iso())
                 if lang == "ru":
-                    await message.reply(f"Энерго-автопилот: {'вкл' if arg == 'on' else 'выкл'}")
+                    await message.reply(f"Р­РЅРµСЂРіРѕ-Р°РІС‚РѕРїРёР»РѕС‚: {'РІРєР»' if arg == 'on' else 'РІС‹РєР»'}")
                 else:
                     await message.reply(f"Energy autopilot: {arg}")
             else:
-                await message.reply("Формат: /autopilot on|off" if lang == "ru" else "Format: /autopilot on|off")
+                await message.reply("Р¤РѕСЂРјР°С‚: /autopilot on|off" if lang == "ru" else "Format: /autopilot on|off")
             return
         if cmd == "mode":
             if len(parts) == 1:
@@ -856,7 +875,7 @@ def build_commands_router(ctx: AppContext) -> Router:
             return
         # Keep these commands concise and deterministic.
         if cmd == "settings":
-            await message.reply("\n".join([("<b>Настройки</b>" if lang == "ru" else "<b>Settings</b>"), "", f"Mode: <code>{html_escape(str(profile.get('llm_mode') or 'normal'))}</code>", f"Confidence: <code>{'on' if bool(profile.get('show_confidence')) else 'off'}</code>", f"Weather city: <code>{html_escape(str(profile.get('weather_city') or runtime.weather_city))}</code>"]), parse_mode="HTML")
+            await message.reply("\n".join([("<b>РќР°СЃС‚СЂРѕР№РєРё</b>" if lang == "ru" else "<b>Settings</b>"), "", f"Mode: <code>{html_escape(str(profile.get('llm_mode') or 'normal'))}</code>", f"Confidence: <code>{'on' if bool(profile.get('show_confidence')) else 'off'}</code>", f"Weather city: <code>{html_escape(str(profile.get('weather_city') or runtime.weather_city))}</code>"]), parse_mode="HTML")
             return
         if cmd == "todo":
             if len(parts) == 1:
@@ -1036,17 +1055,27 @@ def build_commands_router(ctx: AppContext) -> Router:
             if not rows:
                 await message.reply(f"{t(lang, 'profile_title')}\n\n{t(lang, 'profile_empty')}", parse_mode="HTML")
             else:
-                await message.reply("\n".join([t(lang, "profile_title"), ""] + [f"• <b>{html_escape(k)}</b>: {html_escape(v)}" for k, v, _ in rows]), parse_mode="HTML")
+                await message.reply("\n".join([t(lang, "profile_title"), ""] + [f"вЂў <b>{html_escape(k)}</b>: {html_escape(v)}" for k, v, _ in rows]), parse_mode="HTML")
             return
         if cmd == "timeline":
             rows = memory_timeline_list(user_id=uid, limit=25)
             if not rows:
-                await message.reply("Пока пусто." if lang == "ru" else "No timeline entries yet.")
+                await message.reply("РџРѕРєР° РїСѓСЃС‚Рѕ." if lang == "ru" else "No timeline entries yet.")
             else:
-                lines = ["<b>Memory Timeline</b>", ""] + [f"{'✅' if bool(vf) else '▫️'} <b>{html_escape(str(k))}</b>: {html_escape(str(v))} (<code>{html_escape(str(ts))}</code>, conf={float(cf):.2f})" for k, v, vf, cf, ts in rows]
+                lines = ["<b>Memory Timeline</b>", ""] + [f"{'вњ…' if bool(vf) else 'в–«пёЏ'} <b>{html_escape(str(k))}</b>: {html_escape(str(v))} (<code>{html_escape(str(ts))}</code>, conf={float(cf):.2f})" for k, v, vf, cf, ts in rows]
                 await message.reply("\n".join(lines), parse_mode="HTML")
 
-    @router.message(F.text.regexp(r"^/(mission|startnow|simulate|premortem|negotiate|life360|goal|drift|futureme|crisis|manual|decide|rule|radar|state|reflect|weekly|export|pro)(?:@\w+)?(?:\s|$)"))
+    @router.message(Command("weekly"))
+    async def weekly_alias_cmd(message: types.Message) -> None:
+        uid = message.from_user.id if message.from_user else 0
+        _runtime, _profile, lang = _profile_runtime_settings(ctx, uid)
+        if lang == "ru":
+            text = "Weekly путь обновлен: используйте /week для обзора и /review week для weekly review."
+        else:
+            text = "Weekly flow updated: use /week for dashboard and /review week for weekly review."
+        await message.reply(text)
+
+    @router.message(F.text.regexp(r"^/(mission|startnow|simulate|premortem|negotiate|life360|goal|drift|futureme|crisis|manual|decide|rule|radar|state|reflect|export|pro)(?:@\w+)?(?:\s|$)"))
     async def llm_guided_cmd(message: types.Message) -> None:
         uid = message.from_user.id if message.from_user else 0
         runtime, profile, lang = _profile_runtime_settings(ctx, uid)
@@ -1074,6 +1103,7 @@ def build_commands_router(ctx: AppContext) -> Router:
         cmd = extract_command((message.text or "").strip())
         if not cmd or cmd not in ctx.known_commands:
             return
-        await message.reply("Команда доступна в меню /help." if lang == "ru" else "Command is available in /help.")
+        await message.reply("РљРѕРјР°РЅРґР° РґРѕСЃС‚СѓРїРЅР° РІ РјРµРЅСЋ /help." if lang == "ru" else "Command is available in /help.")
 
     return router
+

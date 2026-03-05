@@ -6,31 +6,33 @@
         "clean_result": "Очистка выполнена. Удалено сообщений: {count}.",
         "clean_result_none": "Не удалось удалить сообщения. История бота очищена.",
         "start_welcome": (
-            "<b>Панель управления</b>\n"
-            "Основное: <code>/today</code>, <code>/digest</code>, <code>/fit</code>, <code>/subs</code>\n"
-            "Нажмите кнопку ниже или введите команду."
+            "<b>Day OS</b>\n"
+            "AI-операционная система дня.\n"
+            "1) Начните с <code>/today</code>\n"
+            "2) Откройте <code>/menu</code>\n"
+            "Маршрут: <code>/today -> /todo -> /focus -> /checkin -> /week</code>"
         ),
-        "start_back": "<b>С возвращением</b>\nГлавное меню готово.",
-        "menu_enabled": "<b>Меню</b>\nГлавные действия на клавиатуре.",
+        "start_back": (
+            "<b>С возвращением в Day OS</b>\n"
+            "1) <code>/today</code> - план дня\n"
+            "2) <code>/menu</code> - разделы и инструменты"
+        ),
+        "menu_enabled": "<b>Menu</b>\nCore-first: день, задачи, фокус, checkin, неделя.",
         "prices_error": "Не удалось получить цены.",
         "prices_missing": "Не удалось извлечь данные по ценам.",
         "prices_fuel_na": "AI-95 Москва (средняя): н/д",
         "prices_partial_unavailable": "Частично недоступно: {services}",
         "help": (
-            "<b>Быстрый старт</b>\n"
-            "<code>/today</code>, <code>/digest</code>, <code>/fit</code>, <code>/subs</code>, "
-            "<code>/price</code>, <code>/route</code>\n\n"
-            "<b>Продуктивность</b>\n"
-            "<code>/mission</code>, <code>/startnow</code>, <code>/checkin</code>, <code>/todo</code>, "
-            "<code>/score</code>, <code>/plan</code>, <code>/review</code>, <code>/weekly</code>, <code>/settings</code>\n\n"
-            "<b>AI-инструменты</b>\n"
-            "<code>/simulate day</code>, <code>/premortem</code>, <code>/redteam</code>, <code>/scenario week</code>, "
-            "<code>/legacy</code>, <code>/chronotwin simulate</code>, <code>/boardroom</code>, <code>/legend</code>, "
-            "<code>/decide</code>, <code>/negotiate</code>, "
-            "<code>/goal</code>, <code>/drift</code>, <code>/futureme</code>, <code>/crisis</code>, <code>/manual</code>\n\n"
-            "<b>Сервис</b>\n"
-            "<code>/status</code>, <code>/weather</code>, <code>/mode</code>, <code>/confidence</code>, "
-            "<code>/clean</code>, <code>/reset</code>, <code>/menu</code>"
+            "<b>Core / День</b>\n"
+            "<code>/today</code> -> <code>/todo</code> -> <code>/focus</code> -> <code>/checkin</code>\n"
+            "<code>/week</code> обзор недели\n"
+            "<code>/review week</code> weekly review\n"
+            "<code>/decide</code> AI-помощь в решениях\n\n"
+            "<b>Tools / Info</b>\n"
+            "<code>/price</code>, <code>/weather</code>, <code>/digest</code>, <code>/route</code>, <code>/status</code>\n\n"
+            "<b>Advanced</b>\n"
+            "<code>/fit</code>, <code>/subs</code>, <code>/score</code>, <code>/plan</code>, <code>/settings</code>\n"
+            "<code>/weekly</code> alias -> <code>/review week</code>"
         ),
         "status_title": "<b>Статус сервисов</b>",
         "status_core_label": "Система",
@@ -197,59 +199,33 @@
         "clean_result": "Cleanup complete. Messages deleted: {count}.",
         "clean_result_none": "Could not delete messages. Bot memory was cleared.",
         "start_welcome": (
-            "<b>Control Panel</b>\n"
-            "Core: <code>/today</code>, <code>/digest</code>, <code>/fit</code>, <code>/subs</code>\n"
-            "Use buttons below or type a command."
+            "<b>Day OS</b>\n"
+            "AI operating system for your day.\n"
+            "1) Start with <code>/today</code>\n"
+            "2) Open <code>/menu</code>\n"
+            "Flow: <code>/today -> /todo -> /focus -> /checkin -> /week</code>"
         ),
-        "start_back": "<b>Welcome back</b>\nMain menu is ready.",
-        "menu_enabled": "<b>Menu</b>\nQuick sections are below.",
+        "start_back": (
+            "<b>Welcome back to Day OS</b>\n"
+            "1) <code>/today</code> - day plan\n"
+            "2) <code>/menu</code> - sections and tools"
+        ),
+        "menu_enabled": "<b>Menu</b>\nCore-first: day, tasks, focus, check-in, week.",
         "prices_error": "Could not fetch prices.",
         "prices_missing": "Could not retrieve price fields.",
         "prices_fuel_na": "AI-95 Moscow (avg): n/a",
         "prices_partial_unavailable": "Partially unavailable: {services}",
         "help": (
-            "<b>Core</b>\n"
-            "<code>/today</code> - daily focus\n"
-            "<code>/mission</code> - mission dashboard\n"
-            "<code>/digest</code> - digest\n"
-            "<code>/fit</code> - workouts\n"
-            "<code>/subs</code> - subscriptions\n"
-            "<code>/startnow</code> - 5-minute start\n"
-            "<code>/focus</code> - noise-fight block\n"
-            "<code>/simulate day</code> - day simulator\n"
-            "<code>/premortem</code> - pre-mortem goal\n"
-            "<code>/redteam</code> - stress-test your plan\n"
-            "<code>/scenario week</code> - week A/B/C scenarios\n"
-            "<code>/legacy</code> - long-term progress by focus hours\n"
-            "<code>/chronotwin simulate</code> - Peak/Real/Chaos day simulation\n"
-            "<code>/boardroom</code> - 1y/5y/10y decision board\n"
-            "<code>/legend</code> - Ordinary/Elite/Legendary day mode\n"
-            "<code>/negotiate</code> - negotiation copilot\n"
-            "<code>/life360</code> - 6-zone life risk\n"
-            "<code>/goal</code> - 90-day goal decomposition\n"
-            "<code>/drift</code> - anti-drift guard\n"
-            "<code>/futureme</code> - future-self message\n"
-            "<code>/crisis</code> - overload mode\n"
-            "<code>/manual</code> - personal operating manual\n"
-            "<code>/decide</code> - shadow coach\n"
-            "<code>/rule</code> - if-then rules\n"
-            "<code>/radar</code> - financial triggers\n"
-            "<code>/state</code> - state protocol\n"
-            "<code>/reflect</code> - evening reflection\n"
-            "<code>/autopilot</code> - energy autopilot\n"
-            "<code>/score</code> - growth score engine\n"
-            "<code>/plan day|week|month|year</code> - planning cascade\n"
-            "<code>/review day|week|month</code> - retro review\n"
-            "<code>/weekly</code> - weekly review\n"
-            "<code>/settings</code> - settings\n"
-            "<code>/pro</code> - Pro status\n"
-            "<code>/price</code> - market\n"
-            "<code>/route</code> - route\n\n"
-            "<b>More</b>\n"
-            "<code>/todo</code>, <code>/checkin</code>, <code>/weather</code>, <code>/status</code>\n\n"
-            "<b>System</b>\n"
-            "<code>/mode</code>, <code>/confidence</code>, <code>/profile</code>, <code>/remember</code>, "
-            "<code>/timeline</code>, <code>/forget</code>, <code>/export</code>, <code>/clean</code>, <code>/reset</code>, <code>/menu</code>"
+            "<b>Core / Day</b>\n"
+            "<code>/today</code> -> <code>/todo</code> -> <code>/focus</code> -> <code>/checkin</code>\n"
+            "<code>/week</code> weekly dashboard\n"
+            "<code>/review week</code> weekly review\n"
+            "<code>/decide</code> decision support\n\n"
+            "<b>Tools / Info</b>\n"
+            "<code>/price</code>, <code>/weather</code>, <code>/digest</code>, <code>/route</code>, <code>/status</code>\n\n"
+            "<b>Advanced</b>\n"
+            "<code>/fit</code>, <code>/subs</code>, <code>/score</code>, <code>/plan</code>, <code>/settings</code>\n"
+            "<code>/weekly</code> alias -> <code>/review week</code>"
         ),
         "status_title": "<b>Service Status</b>",
         "status_core_label": "Core",
