@@ -1,0 +1,813 @@
+﻿# Day OS Task Queue
+
+## Closed in this pass
+- `TASK-021` UTF-8 hardening (done)
+  - fixed mojibake strings in `handlers/commands.py`
+  - added regression guard test `tests/test_encoding_sanity.py`
+- `TASK-022` UI interaction hardening (done)
+  - hardened top controls / `Параметры` dropdown layering
+  - added live behavior for card tool buttons (`refresh`, `expand`, `pin`)
+- `TASK-023` Remote access startup UX (done)
+  - `scripts/run_web_service.py` now prints local/LAN dashboard URLs when bound to `0.0.0.0`
+- `TASK-024` Workspace cleanup (done)
+  - removed local temp analysis files from project root
+
+## Tail cleanup (status closed)
+- `TASK-025` Layout editor UX polish (done)
+  - keep drag, add clearer lock state + active hints in UI text
+- `TASK-026` Panel registry cleanup pass (done)
+  - remove remaining static panel assumptions, keep one registry path
+- `TASK-027` Dashboard render perf pass (done)
+  - reduce redundant DOM writes in heavy blocks (`news`, `tasks`, `events`)
+- `TASK-028` AI chat reliability pass (done)
+  - normalize timeout/fallback states in dashboard chat log
+- `TASK-029` Security baseline verification (done)
+  - validate auth/debug gating in non-local requests (`DASHBOARD_AUTH_ENABLED`, debug events)
+- `TASK-030` RC2/RC3 smoke expansion (done)
+  - extend web smoke for card-tool actions and layout save/reset path
+
+## Next 20 tasks (Wave B)
+- `TASK-031` Visual tokens consolidation (done)
+  - unify final CSS token layer for background/panels/text/accent to avoid style drift
+- `TASK-032` Icon pixel-pass (done)
+  - normalize icon stroke width/size/alignment for nav/card/tool icons
+- `TASK-033` Top bar operator compaction (done)
+  - reduce noise in header controls while keeping all critical toggles
+- `TASK-034` Grid rhythm alignment (done)
+  - align panel paddings/gaps/headers to one spacing rhythm
+- `TASK-035` Card chrome consistency (done)
+  - identical header/tool/meta styles for all cards (no one-off variants)
+- `TASK-036` News card readability (done)
+  - improve title/source/why blocks and line clamping for dense feeds
+- `TASK-037` World Clock premium pass (done)
+  - refine bars, timestamps and row hover states to match operator aesthetic
+- `TASK-038` Copilot/chat visual merge (done)
+  - bring chat block into same card language and tone hierarchy
+- `TASK-039` Action feedback UX (done)
+  - consistent success/error/info confirmations for UI actions
+- `TASK-040` Loading-state coherence (done)
+  - unify loading placeholders, disabled states and refresh indicators
+- `TASK-041` Layout state robustness (done)
+  - protect saved layout from malformed localStorage and stale preset collisions
+- `TASK-042` Panel registry safety checks (done)
+  - guard against unknown panel ids in picker/preset/render path
+- `TASK-043` Render performance micro-pass (done)
+  - minimize repetitive updates for unchanged sections
+- `TASK-044` Dashboard API freshness labels (done)
+  - strict freshness labels and TTL visual tags in cards
+- `TASK-045` Ops panel action hardening (done)
+  - prevent double-click race on restart/reload buttons
+- `TASK-046` Mobile/tablet polish (done)
+  - tighten breakpoints for iPad portrait/landscape operator usage
+- `TASK-047` Keyboard-first interactions (done)
+  - improve focus ring visibility and Enter/Escape behavior in key controls
+- `TASK-048` Security UX surfacing (done)
+  - explicit badge for auth/debug/public-access state in ops block
+- `TASK-049` Web smoke extension (done)
+  - add smoke checks for layout mode, world clock controls and ops endpoints
+- `TASK-050` RC visual checklist (done)
+  - create final visual QA checklist for release candidate screenshots
+
+## Next 20 tasks (Wave C: AI growth + modules)
+- `TASK-051` Module controls parity (done)
+  - per-panel close/expand controls and consistent tool behavior
+- `TASK-052` Module resize interactions (done)
+  - stretch panel from bottom-right corner in edit mode
+- `TASK-053` Icon set refresh (done)
+  - replace uneven control icons with unified thin-line set
+- `TASK-054` Collapsible panel body (done)
+  - add collapse/restore for dense modules without hiding panel
+- `TASK-055` Panel size persistence (done)
+  - save/restore custom panel sizes per preset
+- `TASK-056` Personal AI goals module (done)
+  - new core panel: yearly->monthly->weekly goals and current focus
+- `TASK-057` Daily coaching module (deferred: RC5)
+  - contextual coaching cards based on today/checkin/load
+- `TASK-058` Habit loop module (deferred: RC5)
+  - streaks + rescue micro-step + fallback plan
+- `TASK-059` Decision journal module (deferred: RC5)
+  - capture decision, hypothesis, due-date for outcome review
+- `TASK-060` Weekly review upgrade (deferred: RC5)
+  - stronger weekly summary cards with actionable carry-over
+- `TASK-061` AI profile controls (deferred: RC5)
+  - UI for tone/mode/detail preferences for assistant output
+- `TASK-062` Memory confidence UX (deferred: RC5)
+  - expose confirmed/unconfirmed memory signals in dashboard
+- `TASK-063` Noise control v2 (deferred: RC5)
+  - explainability first: why shown / why hidden for each signal
+- `TASK-064` Day mission compiler (deferred: RC5)
+  - auto-compose mission from tasks, energy, training, deadlines
+- `TASK-065` Recovery sentinel (deferred: RC5)
+  - detect overload pattern and propose reduced-day plan
+- `TASK-066` Focus lane optimization (deferred: RC5)
+  - tighten focus actions and reduce branchy chat prompts
+- `TASK-067` Data freshness governance (deferred: RC5)
+  - explicit stale handling rules for every section in UI/API
+- `TASK-068` UI performance budget (deferred: RC5)
+  - define and enforce target render/refresh timings
+- `TASK-069` Module QA harness (deferred: RC5)
+  - test checklist per panel (controls/render/failure/fallback)
+- `TASK-070` RC3 product cut (deferred: RC5)
+  - finalize what stays in first-layer Day OS and what is hidden
+
+## Next 20 tasks (Wave D: AI evolution + module system)
+- `TASK-071` Design-system freeze v2 (done)
+  - lock one token source for color/type/spacing and remove style drift points
+- `TASK-072` Module shell standard (done)
+  - unified card shell: header/meta/tools/collapse/close behavior contract
+- `TASK-073` Icon pack swap (done)
+  - replace remaining uneven glyphs with one coherent thin-line set
+- `TASK-074` Growth panel data model (done)
+  - define yearly/monthly/weekly/daily focus fields and fallback render rules
+- `TASK-075` Coaching panel runtime (deferred: RC5)
+  - deterministic coaching cues from today/tasks/trend/training sections
+- `TASK-076` Decision journal UI pass (deferred: RC5)
+  - compact capture/edit list with next-review markers
+- `TASK-077` Habit engine surface (deferred: RC5)
+  - show streak, rescue action, and minimum day protocol in one panel
+- `TASK-078` Mission compiler hardening (done)
+  - mission text assembly without duplicate/empty signals
+- `TASK-079` Focus lane simplification (deferred: RC5)
+  - reduce branchy CTA set and keep one canonical focus action path
+- `TASK-080` World clock interaction polish (deferred: RC5)
+  - cleaner add/remove flow and stricter city row visual consistency
+- `TASK-081` Layout persistence audit (deferred: RC5)
+  - verify order/visibility/size state across all presets and reloads
+- `TASK-082` Render pipeline budget (deferred: RC5)
+  - enforce no-op renders for unchanged sections and guard heavy blocks
+- `TASK-083` API contract freeze v3 (deferred: RC5)
+  - normalized section freshness and stable shape for all dashboard blocks
+- `TASK-084` AI chat reliability v2 (deferred: RC5)
+  - deterministic timeout/fallback replies and status chips in every failure case
+- `TASK-085` Ops panel command safety (deferred: RC5)
+  - explicit in-flight locks and safe retry hints for restart/reload actions
+- `TASK-086` Security posture UI (deferred: RC5)
+  - clear local/LAN/debug/auth exposure state + warning copy in one place
+- `TASK-087` Mobile operator mode (deferred: RC5)
+  - denser tablet portrait layout with preserved module controls
+- `TASK-088` Panel QA matrix (deferred: RC5)
+  - per-panel runtime checklist: render, tools, fallback, empty, stale states
+- `TASK-089` Visual regression snapshots (deferred: RC5)
+  - baseline screenshots for core presets to spot accidental UI drift
+- `TASK-090` RC4 stabilization cut (deferred: RC5)
+  - final cleanup pass: dead controls, broken states, and noisy copy removal
+
+## Done criteria (for each task)
+- no regressions in existing tests
+- clear user-visible behavior
+- no dead controls in UI
+- no fallback to broken/mojibake output
+
+## Next 20 tasks (Wave E: productivity modules + companion)
+- `TASK-091` Task scheduling data model (done)
+  - added `due_date`, `remind_at`, `remind_telegram`, `reminder_sent_at` to `todo_items` (migration-safe)
+- `TASK-092` Task module composer (done)
+  - dashboard task panel now supports create with date + reminder + Telegram toggle
+- `TASK-093` Telegram reminder worker (done)
+  - background queue worker sends due reminders and marks items as sent
+- `TASK-094` Subscription finance schema v1 (done)
+  - added amount/currency/note/category/autopay/remind_days fields
+- `TASK-095` Subscriptions module composer (done)
+  - dashboard sub panel now creates subscriptions with amount/date/period
+- `TASK-096` Calendar module v1 (done)
+  - added dashboard calendar panel with day buckets + upcoming task list
+- `TASK-097` Life stats module v1 (done)
+  - added days-on-planet and operational metrics panel
+- `TASK-098` Gemma companion tone upgrade (done)
+  - prompts adjusted to warm “second-pilot” tone without losing actionability
+- `TASK-099` Dashboard section contract extension (done)
+  - `/dashboard/data` now includes `stats` + `calendar` sections with freshness metadata
+- `TASK-100` Regression guard pass (done)
+  - extended tests for new DB fields and web smoke (`172 tests OK`)
+
+## Next 20 tasks (Wave F: module deepening, queued)
+- `TASK-101` Task edit flow
+  - inline edit task text/date/reminder directly in tasks panel
+- `TASK-102` Task complete/delete actions in dashboard
+  - clickable controls in Things-style list with optimistic UI
+- `TASK-103` Calendar month navigator
+  - previous/next month switching and month title in panel header
+- `TASK-104` Year goals persistence
+  - dedicated storage/API for yearly goals (not only AI-generated text)
+- `TASK-105` Calendar drill-down
+  - click day -> show tasks + completed items + quick add
+- `TASK-106` Subscription renew/roll UI
+  - roll next date + mark paid + quick postpone
+- `TASK-107` Subscription reminders
+  - pre-charge reminders based on `remind_days` (dashboard + Telegram)
+- `TASK-108` Budget summary mini-widget
+  - monthly recurring total by currency and category
+- `TASK-109` Stats trends
+  - sparkline-like weekly trend for focus/tasks/energy
+- `TASK-110` Gemma memory chips in chat
+  - “Запомнить это / Использовать завтра” actions for assistant replies
+- `TASK-111` Companion profile settings
+  - warmth/strictness/detail controls persisted per user
+- `TASK-112` Companion proactive nudges
+  - low-frequency gentle prompts based on energy/open tasks
+- `TASK-113` Notification center panel
+  - one stream for reminders, subs, ops events, and AI suggestions
+- `TASK-114` Calendar + training sync
+  - render workout-of-day and completed workouts on calendar days
+- `TASK-115` Task recurrence baseline
+  - repeat patterns for routine tasks (daily/weekly/monthly)
+- `TASK-116` Fast command palette (web)
+  - `/today`, `/todo`, `/focus` actions from one keyboard panel
+- `TASK-117` Accessibility polish
+  - keyboard traversal + aria labels for panel tools and forms
+- `TASK-118` API auth/session UX cleanup
+  - improve token/cookie handling messages in dashboard
+- `TASK-119` Performance budget enforcement
+  - measure and cap refresh/render timings for heavy modules
+- `TASK-120` RC module stabilization cut
+  - freeze module contracts and run full regression + visual checklist
+
+## Next 50 tasks (Wave G: AI-first execution + Things-grade tasks)
+- `TASK-121` Things hover actions for tasks (done)
+  - added hover controls: move today/tomorrow/any-date + delete
+- `TASK-122` Task schedule update API (done)
+  - `PATCH /tasks/{id}` wired to `tasks:update`
+- `TASK-123` Task delete API in web layer (done)
+  - `DELETE /tasks/{id}` with user-scoped deletion
+- `TASK-124` Things mini-date picker in tasks composer (done)
+  - quick picks: today / tomorrow / someday
+- `TASK-125` Task inline edit text (done)
+  - inline rename in tasks panel (`Изм.`), save/cancel and Enter/Escape shortcuts
+- `TASK-126` Task notes field
+  - optional lightweight notes under title
+- `TASK-127` Task priority lanes
+  - inbox / today / anytime semantics
+- `TASK-128` Task recurrence rules
+  - daily, weekdays, weekly, monthly
+- `TASK-129` Task move-by-drag
+  - drag between date buckets
+- `TASK-130` Completed tasks drawer
+  - collapsible “Done today” section
+- `TASK-131` Undo action for done/delete
+  - 5-second rollback toast
+- `TASK-132` Batch actions
+  - multi-select complete/move/delete
+- `TASK-133` Search + quick filter
+  - by text/date/status
+- `TASK-134` Smart date parser
+  - “завтра”, “пн”, “через 3 дня”
+- `TASK-135` Keyboard command palette for tasks
+  - create/move/complete without mouse
+- `TASK-136` Task performance profile
+  - cap rerenders for large lists
+- `TASK-137` AI task decomposition
+  - split large task into 3 actionable subtasks
+- `TASK-138` AI daily prioritizer (done)
+  - rule-based top-3 prioritization from due date + age, surfaced in AI action line
+- `TASK-139` AI deadline risk detector
+  - detect overdue clusters and propose replan
+- `TASK-140` AI procrastination nudge
+  - low-frequency nudges with practical next step
+- `TASK-141` Gemma proactive suggestion engine v1
+  - “смотри, что придумала” cards in chat
+- `TASK-142` Suggestion acceptance flow
+  - one-click apply suggestion to task/calendar
+- `TASK-143` Suggestion feedback loop
+  - useful/not-useful signal for personalization
+- `TASK-144` AI confidence labels in suggestions
+  - low/medium/high confidence surfacing
+- `TASK-145` Noise throttling for proactive messages
+  - max N nudges/day + quiet hours
+- `TASK-146` Timer module shell
+  - separate dashboard card for timers
+- `TASK-147` Pomodoro timer core
+  - start/pause/resume/reset cycles
+- `TASK-148` Interval timer core
+  - work/rest rounds with sound/visual cues
+- `TASK-149` Tabata presets
+  - 20/10, 45/15, custom templates
+- `TASK-150` Timer persistence
+  - state survives refresh/reopen
+- `TASK-151` Timer-to-task link
+  - start timer from selected task
+- `TASK-152` Timer-to-fitness link
+  - apply workout-derived interval presets
+- `TASK-153` Auto timer suggestion from workout plan
+  - Gemma suggests suitable interval mode
+- `TASK-154` Session logs for timers
+  - store completion stats per day/week
+- `TASK-155` Focus analytics merge
+  - combine timer + focus stats in one trend
+- `TASK-156` AI coaching from timer outcomes
+  - adaptive advice based on completion/failures
+- `TASK-157` Training template parser
+  - parse workout notes to infer intervals
+- `TASK-158` Guided workout runner
+  - step-by-step cues for circuit sessions
+- `TASK-159` Active reminder channel selector
+  - dashboard / Telegram / both
+- `TASK-160` Telegram reminder enrichment
+  - include task context and quick actions
+- `TASK-161` Today timeline view
+  - chronologic blocks for tasks/timers/training
+- `TASK-162` Week planning board
+  - move tasks across week days visually
+- `TASK-163` AI weekly plan draft
+  - initial weekly plan from goals/load
+- `TASK-164` Weekly reflection autoprompt
+  - 3 adaptive questions + carry-over
+- `TASK-165` Personalization profile v1
+  - tone, strictness, humor, initiative level
+- `TASK-166` Personal memory safeguard
+  - explicit user-approved memory fields
+- `TASK-167` Dashboard performance telemetry
+  - frontend timing + API latency traces
+- `TASK-168` API optimization pass v2
+  - reduce heavy joins/calls per refresh
+- `TASK-169` Smoke coverage expansion
+  - tasks/timers/proactive suggestion paths
+- `TASK-170` RC5 AI+Tasks hardening cut
+  - freeze contracts, pass smoke, zero blockers
+
+## Next 20 tasks (Wave H: tasks quality + AI loop)
+- `TASK-171` Inline edit visual polish (done)
+  - refined edit controls and note rendering density for Things-like task rows
+- `TASK-172` Task update validation matrix (done)
+  - API/coordinator now reject empty titles and empty update payloads
+- `TASK-173` Task notes schema v1 (done)
+  - optional notes wired through DB/core/API/UI and rendered under task title
+- `TASK-174` Due-date quick presets v2
+  - add “на этой неделе / на следующей неделе” actions
+- `TASK-175` Completed bucket in tasks panel (done)
+  - added collapsible “Закрыто сегодня/недавно” block in tasks panel
+- `TASK-176` AI priority reasons (done)
+  - top-3 now includes machine-readable reasons (`срок`, `просрочено`, `в очереди`)
+- `TASK-177` AI micro-step generator (done)
+  - action line now includes 10-minute starter step for first priority task
+- `TASK-178` Quiet-hours gating for proactive chat (done)
+  - proactive Gemma nudges are now muted in configured quiet-hours window
+- `TASK-179` Chat memory continuity check (done)
+  - added regression tests for dedup + capped history trim behavior
+- `TASK-180` Tasks API latency budget
+  - measure/limit `/tasks` + `/dashboard/data` task section timings
+- `TASK-181` Calendar/task consistency guard
+  - verify task changes reflect in calendar section on next refresh
+- `TASK-182` Reminder retry safety
+  - prevent duplicate reminder sends on transient failures
+- `TASK-183` Ops restart UX guard
+  - disable action buttons while restart command is in-flight
+- `TASK-184` Mobile text input reliability
+  - verify chat input focus/keyboard behavior on iPad layout
+- `TASK-185` News module source balance
+  - ensure non-local source mix and cap per-source dominance
+- `TASK-186` News headline quality rewrite guard
+  - prevent over-short/over-long AI rewrite outputs
+- `TASK-187` Panel scroll performance pass
+  - reduce jank in dense modules (`news`, `tasks`, `signals`)
+- `TASK-188` Dashboard auth diagnostics
+  - clear reason codes for denied requests in ops panel
+- `TASK-189` RC6 smoke expansion (done)
+  - covered text-only task update, prioritizer, quiet-hours nudge and chat-history continuity paths
+- `TASK-190` RC6 hardening cut
+  - stabilize contracts and close known blockers for next milestone
+
+## Next 20 tasks (Wave I: autonomous assistant quality + speed)
+- `TASK-191` Task notes inline edit (done)
+  - task row edit mode now updates title + notes in one save flow
+- `TASK-192` Done bucket filters (done)
+  - completed drawer now supports filters: today / 3 days / 7 days / all
+- `TASK-193` Daily timeline panel v1
+  - chronological view: tasks, reminders, focus blocks
+- `TASK-194` AI context memory chips in web chat
+  - quick actions: “Запомнить”, “Использовать завтра”
+- `TASK-195` Proactive suggestion apply flow
+  - one-click convert suggestion into task with date
+- `TASK-196` AI replan strict mode
+  - enforce top-3 output with explicit cut list
+- `TASK-197` News digest scoring
+  - per-item usefulness score for personalization feedback
+- `TASK-198` Timer skeleton API
+  - create/start/stop timer states without UI overload
+- `TASK-199` Focus telemetry endpoint
+  - compact latency/productivity metrics for ops panel
+- `TASK-200` Dashboard data diff-render
+  - skip repaint for unchanged sections by hash/version
+- `TASK-201` DB query micro-optimizations
+  - trim heavy dashboard queries and add missing indexes
+- `TASK-202` API timeout matrix
+  - normalized timeout defaults by endpoint type
+- `TASK-203` AI error language unification
+  - one clear RU fallback style for all assistant paths
+- `TASK-204` Chat input mobile reliability v2
+  - iPad keyboard/focus edge-cases and scroll-into-view
+- `TASK-205` Ops panel actionable diagnostics
+  - expose “what to do next” on each degraded service
+- `TASK-206` Remote access quality checklist
+  - reproducible LAN/VPN access validation script
+- `TASK-207` Security headers baseline
+  - strict response headers for dashboard/API routes
+- `TASK-208` Smoke pack split
+  - fast (core) and full (release) test packs
+- `TASK-209` Release RC7 checklist
+  - pin blockers, rollback, backup/restore checkpoints
+- `TASK-210` RC7 stabilization cut
+  - final integration pass for tasks+AI+ops coherence
+
+## Next 20 tasks (Wave J: interface depth + operator UX)
+- `TASK-211` Tasks panel compact mode (done)
+  - added persistent density toggle (normal/compact) in tasks panel
+- `TASK-212` Tasks sorting controls (done)
+  - tasks toolbar now supports sorting by due date / created / title
+- `TASK-213` Inline due date edit (done)
+  - date field added into row edit mode with save/update pipeline
+- `TASK-214` Task quick tags
+  - lightweight labels for context (work/home/deep/admin)
+- `TASK-215` Timeline panel skeleton
+  - one place for today blocks: tasks/reminders/focus
+- `TASK-216` Focus block launcher from task row
+  - start focus directly on selected task
+- `TASK-217` Completed analytics mini-card (done)
+  - added done summary chip (today/3d/7d) near completed filters
+- `TASK-218` Mobile interaction pass v3
+  - touch hit-area and keyboard-safe spacing on iPad
+- `TASK-219` Sticky compose bar (done)
+  - tasks compose and toolbar now sticky for long vertical navigation
+- `TASK-220` News cards visual rebalance
+  - uniform line-height, spacing and action readability
+- `TASK-221` AI suggestions pin/unpin
+  - user can pin useful assistant suggestions in feed
+- `TASK-222` Suggestion-to-task mapping v2
+  - map suggestion text into task + notes + due date
+- `TASK-223` Ops status drill-down
+  - expandable diagnostics per service in one panel
+- `TASK-224` Dashboard refresh throttle tuning
+  - adaptive refresh cadence by visibility/activity
+- `TASK-225` Query budget report endpoint
+  - expose section query cost for optimization work
+- `TASK-226` Security audit hints panel
+  - actionable hints when auth/debug/public flags risky
+- `TASK-227` A11y pass for controls
+  - keyboard/aria cleanup for panel tools and filters
+- `TASK-228` Smoke tests for tasks drawer filters (done)
+  - smoke covers completed-filter controls and filter binding hooks
+- `TASK-229` Visual snapshot baseline v2
+  - refreshed screenshots for key presets and modules
+- `TASK-230` RC8 stabilization cut
+  - integration hardening for interface + task UX loop
+
+## Next 20 tasks (Wave K: interface acceleration + assistant UX)
+- `TASK-231` Task sorting controls v1 (done)
+  - tasks toolbar includes sort mode (due/created/title) with persisted preference
+- `TASK-232` Quick tag chips v1
+  - simple per-task chips and filter by chip
+- `TASK-233` Focus launch from task row
+  - one-click start focus and pin selected task
+- `TASK-234` Sticky calendar header
+  - keep month/day context visible in calendar panel
+- `TASK-235` Inline due quick presets
+  - today/tomorrow/no-date buttons inside row edit
+- `TASK-236` Completed list virtualization prep
+  - efficient render path for long done history
+- `TASK-237` Task drawer animation polish
+  - smooth collapse/expand transitions without jank
+- `TASK-238` AI suggestion badges
+  - classify suggestions by type (focus/replan/task/risk)
+- `TASK-239` Assistant response composer polish (done)
+  - chat compose block got compact hint line + guarded send button in-flight
+- `TASK-240` Chat action chip persistence
+  - keep last quick-actions until next assistant turn
+- `TASK-241` Mobile compact nav mode (done)
+  - compact top bar and controls layout for tablet widths with cleaner operator flow
+- `TASK-242` Panel empty-state consistency (done)
+  - centralized empty-state renderer with muted/warn/error variants across modules
+- `TASK-243` Section refresh indicators v2
+  - finer per-panel refresh status and last-update labels
+- `TASK-244` Performance snapshot widget
+  - render/api timing summary in ops panel
+- `TASK-245` API error trace id surfacing
+  - expose support id in UI without leaking internals
+- `TASK-246` Accessibility contrast pass
+  - validate contrast for dim green palette states
+- `TASK-247` Keyboard map help overlay
+  - compact cheat-sheet for main shortcuts
+- `TASK-248` Smoke test for compact mode
+  - guard tasks density toggle markers and state init
+- `TASK-249` Smoke test for done filters
+  - guard filter controls and logic hooks presence
+- `TASK-250` RC9 stabilization cut
+  - freeze interface contracts and close UI blockers
+
+## Next 20 tasks (Wave L: operator polish + productivity depth)
+- `TASK-251` Task quick tags v1
+  - add lightweight tags (work/home/deep/admin) with filter chips
+- `TASK-252` Focus launch from task row
+  - start focus block directly from selected task
+- `TASK-253` Sticky calendar header
+  - keep month context and quick-nav visible during scroll
+- `TASK-254` Due date quick presets v3
+  - inline “на этой неделе / на следующей” in edit mode
+- `TASK-255` Completed drawer animation pass (done)
+  - added smooth open/close transitions for done drawer sections
+- `TASK-256` Section refresh indicator chip
+  - per-card mini status (loading/stale/fresh) near stamp
+- `TASK-257` API trace id in ops panel
+  - show support trace id for failing endpoints without leaking stack
+- `TASK-258` Keyboard help overlay
+  - compact cheat-sheet for main dashboard shortcuts
+- `TASK-259` Accessibility contrast hardening
+  - raise low-contrast states in dim green palette
+- `TASK-260` Mobile chat input reliability v3
+  - enforce stable focus/scroll behavior on iPad/iOS keyboard
+- `TASK-261` News card density controls
+  - compact/comfortable switch for feed readability
+- `TASK-262` Market panel row compactness
+  - improve numeric alignment and multi-line overflow handling
+- `TASK-263` World clock row actions UX
+  - clearer add/remove affordance with accidental-click guard
+- `TASK-264` Ops action lock UX
+  - explicit disabled/in-progress visual state for restart actions
+- `TASK-265` Dashboard section cache badges
+  - show when data is from cache and age delta
+- `TASK-266` Task empty-state CTA
+  - actionable “что сделать дальше” buttons when no open tasks
+- `TASK-267` Codex history status badges
+  - normalize run status colors/labels and failure hints
+- `TASK-268` Frontend error normalization
+  - one short RU format for network/API/UI runtime errors
+- `TASK-269` Smoke tests for empty-state renderer
+  - guard central empty-state function usage in key modules
+- `TASK-270` RC10 stabilization cut
+  - verify UI consistency pass + no dead controls before next wave
+
+## Next 20 tasks (Wave M: persona + interface coherence)
+- `TASK-271` Gemma persona tuning v2 (done)
+  - reinforced witty/derzkiy tone with safe flirt boundaries and practical output
+- `TASK-272` Day mode localization pass (done)
+  - removed raw EN mode label from AI mission fallback text
+- `TASK-273` Module typography lock (done)
+  - enforced mono labels + unified UI font hierarchy across top bar/cards/content
+- `TASK-274` Unified row component polish (done)
+  - aligned row/meta/stat/calendar/codex card internals to one visual shell
+- `TASK-275` AI mission text readability (done)
+  - mission fallback text shortened and made more actionable
+- `TASK-276` Chat send guard + UX feedback (done)
+  - double-send guard added with send-button in-flight state
+- `TASK-277` Codex history card compact mode
+  - reduce visual noise in long run history lists
+- `TASK-278` Calendar section visual balance
+  - align day cells/upcoming list with shared module shell
+- `TASK-279` Empty/error state language pass
+  - concise RU messages with clear next action
+- `TASK-280` RC11 coherence cut
+  - freeze persona/style wording and run smoke + manual visual checklist
+- `TASK-281` Messenger chat alignment (done)
+  - user bubbles moved right, assistant bubbles left, unified bubble palette and quick-action chips
+- `TASK-282` Dark Matter Ops Center restyle (done)
+  - applied full dark-matter token theme, compact toolbars, unified card shell, 12-col grid and responsive 1440p/4K polish
+
+## Next 20 tasks (Wave N: interface coherence + productivity UX)
+- `TASK-283` Cross-module visual consistency v3 (done)
+  - final override pass: unified controls, inputs, rows, chips, button sizing, and text hierarchy across tasks/news/fitness/subs/garage/chat/toolkit
+- `TASK-284` Card content density alignment (done)
+  - normalized internal paddings and base row density so modules read at one rhythm
+- `TASK-285` Task panel hierarchy polish (done)
+  - added explicit “В работе / Завершено” zones and stronger visual separation of compose/toolbar/content
+- `TASK-286` News module readability tune (done)
+  - news cards now use readable headline/meta/why structure with consistent spacing and contrast
+- `TASK-287` Market module precision styling (done)
+  - aligned market numeric layout with split integer/decimal price and stable delta column
+- `TASK-288` Fitness module control unification (done)
+  - make timer/workout controls match the same control language as tasks/subs
+- `TASK-289` Garage module compact form mode (done)
+  - collapse non-critical fields by default and keep key indicators always visible
+- `TASK-290` Ops panel micro-status polish (done)
+  - normalize service row labels/dots/badges and action button states
+- `TASK-291` Chat composer focus UX (done)
+  - stronger active-state feedback on input/send flow with no extra noise
+- `TASK-292` Empty-state CTA standards
+  - every empty block gets one concise next action in consistent tone
+- `TASK-293` Stamp/freshness chips alignment (done)
+  - make all “N сек назад” stamps identical in position, style, and meaning
+- `TASK-294` Scrollbar consistency pass (done)
+  - align internal module scrollbars and remove visual jumps between cards
+- `TASK-295` Mobile/tablet module spacing pass
+  - compact but readable spacing rules for iPad and narrow desktops
+- `TASK-296` High-density mode toggle (UI-only)
+  - optional tighter paddings for users who want more info per screen
+- `TASK-297` Animation coherence pass
+  - remove inconsistent transitions and keep a single motion profile
+- `TASK-298` Color contrast safety pass
+  - verify dim states remain readable in dark theme
+- `TASK-299` Visual smoke checklist v3
+  - add manual checks for top bar/cards/forms/chat consistency
+- `TASK-300` UI regression smoke hooks
+  - extend smoke checks for key dashboard classes and controls
+- `TASK-301` RC12 interface stabilization cut
+  - freeze visual language before next feature wave
+- `TASK-302` Productive UI clean-up sweep
+  - remove leftover legacy style fragments that are no longer used
+
+## Next 20 tasks (Wave O: deep UI coherence + operator focus)
+- `TASK-303` Fitness panel visual hierarchy pass
+  - make workout/timer/video blocks read as one coherent operator flow
+- `TASK-304` Subs panel compact finance readability
+  - improve input grouping and payment summary scan speed
+- `TASK-305` Garage compact mode v1
+  - collapse secondary fields, keep key status chips and actions visible
+- `TASK-306` Ops panel row parity
+  - unify service rows with same baseline heights and metadata alignment
+- `TASK-307` World clock action ergonomics
+  - cleaner add/remove affordances with less accidental taps
+- `TASK-308` Calendar dense readability
+  - normalize day cell spacing and upcoming list rhythm
+- `TASK-309` Stats module mini-trend hints
+  - add lightweight deltas under KPI values (UI only if data available)
+- `TASK-310` Chat quick-actions visual grouping
+  - make action chips clearly secondary to assistant response
+- `TASK-311` Form validation inline hints style
+  - one visual language for warnings/errors across modules
+- `TASK-312` Empty-state action consistency v2
+  - each empty module shows one short “что сделать сейчас” CTA
+- `TASK-313` Panel toolbar icon uniformity
+  - normalize icon stroke/size/spacing in all card headers
+- `TASK-314` Color token cleanup sweep
+  - reduce leftover ad-hoc colors and map to core dark-matter tokens
+- `TASK-315` Scroll performance visual pass
+  - remove janky shadows/overdraw in long lists
+- `TASK-316` Mobile compose comfort pass
+  - improve input/button spacing for iPad portrait and narrow widths
+- `TASK-317` News card source quality labels
+  - subtle source trust/region chips for faster triage
+- `TASK-318` Market compact mode toggle
+  - optional dense market rows for smaller displays
+- `TASK-319` UI consistency smoke extension
+  - add tests for new task/news/market class contracts
+- `TASK-320` Visual QA checklist v4
+  - update manual checklist for all cards after wave O
+- `TASK-321` RC13 interface freeze cut
+  - stabilize interface before next functional wave
+- `TASK-322` Legacy CSS debt trimming
+  - remove inactive duplicated style fragments safely
+
+## Next 20 tasks (Wave P: module maturity + AI operator loop)
+- `TASK-323` Fitness card collapse controls (done)
+  - add collapse/expand per fitness sub-block without affecting data fetch
+- `TASK-324` Workout plan delta hints (done)
+  - show week-over-week load delta for selected workout
+- `TASK-325` Timer preset editor v1
+  - UI to add/edit custom rest/tabata presets in dashboard
+- `TASK-326` Timer-to-workout auto-bind
+  - auto-select suggested timer when workout changes
+- `TASK-327` Garage service timeline
+  - compact timeline of ТО/страховка/осмотр with next due markers
+- `TASK-328` Garage document badges
+  - mark docs as official/local/manual and show stale-date warning
+- `TASK-329` Ops action feedback v2 (done)
+  - inline progress + completion state for restart/status commands
+- `TASK-330` Ops diagnostics quick copy (done)
+  - copy compact diagnostics summary for troubleshooting
+- `TASK-331` Chat action memory rail
+  - keep last accepted actions as reusable chips
+- `TASK-332` Chat conversation sections
+  - visual separators by session (today/replan/focus)
+- `TASK-333` AI brief quality badges
+  - confidence/source badges for AI brief blocks
+- `TASK-334` News source diversity guard
+  - enforce source spread in top news cards
+- `TASK-335` News auto-rewrite strict mode
+  - concise headline rewrite template with quality fallback
+- `TASK-336` Tasks date-chip quick edit (done)
+  - click due-date chip to open quick date actions
+- `TASK-337` Tasks row density memory
+  - persist compact/comfortable mode per user
+- `TASK-338` Calendar agenda side rail
+  - show linked tasks + focus blocks per date
+- `TASK-339` Dashboard refresh QoS
+  - dynamic refresh cadence by active panel + in-flight requests
+- `TASK-340` Visual smoke extension v5
+  - tests for ops/chat/fitness/garage class contracts
+- `TASK-341` RC14 interface readiness cut
+  - stabilize Wave P UI contracts before next feature cycle
+- `TASK-342` Post-RC14 cleanup sweep
+  - remove dead CSS fragments and duplicate selectors safely
+
+## Next 20 tasks (Wave Q: interaction depth + operational polish)
+- `TASK-343` Task due-chip keyboard actions (done)
+  - date chip responds to Enter/Space and closes on Esc
+- `TASK-344` Task row action simplification (done)
+  - reduce duplicate move controls while preserving quick path
+- `TASK-345` Fitness collapse state presets
+  - separate collapse memory for morning/work/evening layouts
+- `TASK-346` Fitness card transition polish
+  - smooth collapse/expand animation without layout jank
+- `TASK-347` Ops action cooldown hints
+  - show brief cooldown after restart actions to prevent spam clicks
+- `TASK-348` Ops summary copy button (done)
+  - one-click copy status lines for fast diagnostics
+- `TASK-349` Chat composer sticky behavior tune
+  - keep input visible with iPad keyboard and short viewport
+- `TASK-350` Chat quick-action persistence v2
+  - preserve action chips until next successful user action
+- `TASK-351` News card density compact toggle
+  - switch between compact and readable feed density
+- `TASK-352` News source triage chips
+  - quick include/exclude source from card header controls
+- `TASK-353` Market row align audit
+  - ensure numeric columns stay aligned on narrow widths
+- `TASK-354` Garage doc stale marker
+  - visual stale badge if document date exceeds threshold
+- `TASK-355` Garage form save guard
+  - dirty-state indicator and save button enablement only on changes
+- `TASK-356` Calendar task drill link
+  - click agenda row to highlight corresponding task card
+- `TASK-357` World clock row reorder
+  - allow up/down city reorder with persistence
+- `TASK-358` Panel toolbar affordance pass
+  - unify hover/active/disabled states in all card toolbars
+- `TASK-359` Scroll sync performance check
+  - reduce repaint spikes on long panel scrolls
+- `TASK-360` Smoke extension v6
+  - cover new due-chip/fit-collapse/ops-action states
+- `TASK-361` RC15 interface freeze
+  - lock interaction contracts for next functional wave
+- `TASK-362` Post-RC15 visual debt sweep
+  - trim redundant selectors and stale overrides
+
+## Next 20 tasks (Wave R: precision UX + resilience)
+- `TASK-363` Task due-chip focus ring polish (done)
+  - visible keyboard focus state and open-menu indicator
+- `TASK-364` Task quick-move dedupe (done)
+  - reduce duplicate move buttons between row and due-menu
+- `TASK-365` Fitness delta source tooltip
+  - show which fields formed delta (this week vs last week)
+- `TASK-366` Fitness card pin memory
+  - pin key fitness card at top within panel
+- `TASK-367` Ops copy payload redaction
+  - ensure diagnostics copy excludes sensitive values
+- `TASK-368` Ops action optimistic lock
+  - prevent overlapping actions per service button
+- `TASK-369` Chat message grouping rhythm
+  - tighter spacing for consecutive messages from same role
+- `TASK-370` Chat quick-action cooldown
+  - disable repeat action chips briefly after click
+- `TASK-371` News rewrite fallback badge
+  - explicit mark when original title shown due rewrite fail
+- `TASK-372` Market stale-data warning chip
+  - show warning when market data age exceeds SLA
+- `TASK-373` Garage save success inline chip
+  - temporary inline confirmation on updated vehicle card
+- `TASK-374` Garage invalid-date guard
+  - client validation for maintenance/insurance date order
+- `TASK-375` Calendar cell hover preview
+  - short preview of tasks on day cell hover
+- `TASK-376` World clock timezone validation hint
+  - suggest close matches for mistyped city/timezone
+- `TASK-377` Module toolbar tab-order audit
+  - consistent keyboard navigation across tool buttons
+- `TASK-378` Scroll area focus containment
+  - avoid accidental page scroll when interacting in modules
+- `TASK-379` Dashboard empty-block consistency v3
+  - unify empty/warn/error cards with one CTA pattern
+- `TASK-380` Smoke extension v7
+  - add checks for ops-copy/fitness-delta/due-chip keyboard
+- `TASK-381` RC16 polish freeze
+  - freeze interaction behavior for onboarding pass
+- `TASK-382` Post-RC16 cleanup sweep
+  - remove obsolete state flags/selectors after freeze
+
+## Next 20 tasks (Wave S: speed + reliability hardening)
+- `TASK-383` Dashboard panel cache metrics
+  - expose cache-hit/cache-miss counters in debug meta (API-only)
+- `TASK-384` Cache TTL tuning matrix
+  - tune weather/news/market/signals TTL by real usage cadence
+- `TASK-385` Dashboard fetch abort controller
+  - cancel stale in-flight fetches on rapid refresh/user switch
+- `TASK-386` Render queue coalescing
+  - batch multiple immediate refresh triggers into one paint cycle
+- `TASK-387` Tasks panel delegated events v2
+  - replace per-row listeners with single delegated handler path
+- `TASK-388` Chat history lazy hydration
+  - delay heavy chat history render until panel visible/focused
+- `TASK-389` World clock diff-render
+  - update changed rows only, avoid full list rebuild each tick
+- `TASK-390` News list incremental render
+  - preserve DOM rows when only timestamps/freshness changed
+- `TASK-391` Ops action retry affordance
+  - one-click retry on failed ops actions with state reset
+- `TASK-392` API payload trim pass
+  - remove redundant fields in dashboard response in non-debug mode
+- `TASK-393` Section signature hash optimization
+  - replace JSON stringify on large objects with stable lightweight hash
+- `TASK-394` Fitness panel memoized fragments
+  - avoid rebuilding static controls when data unchanged
+- `TASK-395` Garage form diff-submit
+  - PATCH only changed fields to reduce payload and merge cost
+- `TASK-396` Smoke suite split by tier
+  - fast tier for pre-change run + full tier for final gate
+- `TASK-397` Perf regression test scaffold
+  - baseline timing assertions for key dashboard endpoints
+- `TASK-398` Error path latency normalization
+  - keep fast fallback under outage/timeouts across modules
+- `TASK-399` Client-side cache age badges
+  - show concise age/cached badge to reduce manual refresh churn
+- `TASK-400` RC17 speed freeze
+  - lock performance-related contracts before next feature wave
+- `TASK-401` RC17 QA checklist
+  - combined functional/perf/manual checklist for release candidate
+- `TASK-402` Post-RC17 cleanup sweep
+  - remove temporary diagnostics and dead perf toggles

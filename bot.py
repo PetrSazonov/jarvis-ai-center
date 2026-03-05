@@ -18,7 +18,7 @@ from handlers.growth import build_growth_router
 from handlers.advanced_ops import build_advanced_ops_router
 from handlers.ux_router import build_ux_router
 from services.http_service import close_http_client
-from services.scheduler_service import auto_digest_worker, auto_prewarm_worker
+from services.scheduler_service import auto_digest_worker, auto_prewarm_worker, auto_todo_reminder_worker
 
 
 async def main() -> None:
@@ -106,9 +106,10 @@ async def main() -> None:
     crypto_task: asyncio.Task | None = None
     digest_task: asyncio.Task | None = None
     prewarm_task: asyncio.Task | None = None
+    reminder_task: asyncio.Task | None = None
 
     async def on_startup() -> None:
-        nonlocal crypto_task, digest_task, prewarm_task
+        nonlocal crypto_task, digest_task, prewarm_task, reminder_task
         logger.info("event=bot_startup")
         if settings.fitness_vault_chat_id:
             logger.warning(
@@ -147,9 +148,10 @@ async def main() -> None:
         if settings.enable_auto_digest:
             digest_task = asyncio.create_task(auto_digest_worker(bot, settings, logger))
         prewarm_task = asyncio.create_task(auto_prewarm_worker(settings, logger))
+        reminder_task = asyncio.create_task(auto_todo_reminder_worker(bot, settings, logger))
 
     async def on_shutdown() -> None:
-        nonlocal crypto_task, digest_task, prewarm_task
+        nonlocal crypto_task, digest_task, prewarm_task, reminder_task
         logger.info("event=bot_shutdown")
 
         if crypto_task:
@@ -172,6 +174,13 @@ async def main() -> None:
                 await prewarm_task
             except asyncio.CancelledError:
                 logger.info("event=prewarm_stopped")
+
+        if reminder_task:
+            reminder_task.cancel()
+            try:
+                await reminder_task
+            except asyncio.CancelledError:
+                logger.info("event=todo_reminder_stopped")
 
         await close_http_client()
 

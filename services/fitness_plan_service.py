@@ -63,18 +63,21 @@ def fmt_minutes(duration_sec: int) -> str:
 def render_plain_workout_plan(workout: dict) -> str:
     duration = fmt_minutes(workout["duration_sec"]) if workout.get("duration_sec") else "25-35"
     difficulty = int(workout.get("difficulty") or 2)
-    rest = "60-90" if difficulty <= 3 else "90-120"
+    rounds = 4 if difficulty <= 2 else 5 if difficulty >= 4 else 4
+    rest = "60-75" if difficulty <= 2 else "75-90" if difficulty <= 3 else "90-120"
     notes = (workout.get("notes") or "").strip()
     lines = [f"🧠 План: {workout['title']}"]
-    lines.append(f"Длительность: ~{duration} мин")
-    lines.append("1. Разминка 5-7 мин: суставная + легкая кардио активация.")
+    lines.append(f"Длительность: ~{duration} мин | Рабочих кругов: {rounds}")
+    lines.append("1. Разминка 6 мин: суставная + динамика корпуса/плеч/таза.")
     if notes:
-        lines.append(f"2. Основной блок: {notes}")
+        lines.append(f"2. Основной блок ({rounds} круга): {notes}")
     else:
-        lines.append("2. Основной блок: 4-5 рабочих кругов, держи технику и ровный темп.")
+        lines.append(
+            "2. Основной блок: приседания 20-28, отжимания 14-22, тяга/кор 12-16, планка 45-60 сек."
+        )
     lines.append(f"3. Паузы между кругами: {rest} сек.")
-    lines.append("4. Заминка 3-5 мин: дыхание + легкая растяжка.")
-    lines.append("Фокус: аккуратная техника и стабильный ритм.")
+    lines.append("4. Заминка 5 мин: дыхание + мобилизация.")
+    lines.append("Фокус: плотная работа в технике, без провала в качестве.")
     return "\n".join(lines)
 
 
@@ -99,9 +102,19 @@ async def build_ai_workout_plan(settings: Settings, workout: dict) -> str:
     prompt = build_prompt(
         history=[],
         user_message=(
-            "Составь удобный и короткий текстовый план домашней тренировки на русском языке.\n"
-            "Формат: заголовок, длительность, 4 шага (разминка, основной блок, паузы, заминка), один фокус дня.\n"
-            "Без лишней воды, максимум 900 символов.\n\n"
+            "Составь удобный и короткий план домашней тренировки на русском языке.\n"
+            "Формат строго:\n"
+            "## <название>\n"
+            "**Длительность:** <минуты>\n"
+            "1. **Разминка (N мин):** ...\n"
+            "2. **Основной блок (4-6 кругов):** список упражнений с рабочими диапазонами\n"
+            "3. **Паузы:** ...\n"
+            "4. **Заминка (N мин):** ...\n"
+            "**Фокус дня:** ...\n"
+            "Правила:\n"
+            "- Плотность выше среднего, не занижай объем без причины.\n"
+            "- Для базовых движений не предлагай слишком слабые диапазоны.\n"
+            "- Без воды, максимум 900 символов.\n\n"
             f"Название: {workout['title']}\n"
             f"Инвентарь: {workout.get('equipment') or 'нет'}\n"
             f"Сложность: {workout.get('difficulty')} из 5\n"

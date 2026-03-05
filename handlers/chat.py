@@ -28,6 +28,7 @@ from services.quality_service import (
     sanitize_history,
     score_response,
 )
+from services.rag_service import resolve_rag_for_query
 from services.routing import RouteType, determine_route, should_persist_history
 from services.time_service import format_now_lines, is_date_or_time_question
 from services.ux_service import memory_chips_markup
@@ -526,6 +527,28 @@ def build_chat_router(ctx: AppContext) -> Router:
         style_context = _profile_style_context(profile, lang)
         if style_context:
             extra_context = f"{extra_context}\n{style_context}".strip()
+
+        rag_payload = {
+            "personal": False,
+            "context": "",
+            "citations_block": "",
+            "block_message": None,
+        }
+        if uid > 0:
+            rag_payload = await resolve_rag_for_query(user_id=uid, query=text, lang=lang)
+            block_message = rag_payload.get("block_message")
+            if isinstance(block_message, str) and block_message.strip():
+                if uid > 0:
+                    _remember_last_turn(user_id=uid, assistant_text=block_message)
+                await message.reply(block_message, reply_markup=chips)
+                return
+            rag_context = str(rag_payload.get("context") or "").strip()
+            if rag_context:
+                extra_context = (
+                    f"{extra_context}\n{rag_context}\n"
+                    "If you use personal data, include citations as [1], [2], ... and do not invent sources."
+                ).strip()
+
         prompt = build_prompt(
             history=history,
             user_message=text,
@@ -606,6 +629,10 @@ def build_chat_router(ctx: AppContext) -> Router:
                     _remember_last_turn(user_id=uid, assistant_text=clarify)
                 await message.reply(clarify, reply_markup=chips)
                 return
+
+        citations_block = str(rag_payload.get("citations_block") or "").strip()
+        if bool(rag_payload.get("personal")) and citations_block:
+            llm_response = f"{llm_response}\n\n{citations_block}"
 
         if show_confidence:
             llm_response = f"{llm_response}\n\n{t(lang, 'chat_confidence_line', score=confidence)}"

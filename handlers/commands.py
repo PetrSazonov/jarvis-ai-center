@@ -13,6 +13,7 @@ from aiogram import F, Router, types
 from aiogram.filters import Command
 from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup, KeyboardButton, ReplyKeyboardMarkup, ReplyKeyboardRemove
 
+from core.coordinator import handle_command
 from db import (
     daily_checkin_get,
     daily_checkin_upsert,
@@ -31,9 +32,7 @@ from db import (
     subs_delete,
     subs_due_within,
     subs_get,
-    subs_list,
     subs_update_next_date,
-    todo_add,
     todo_delete,
     todo_list_open,
     todo_mark_done,
@@ -211,9 +210,9 @@ def _is_cache_fresh(ts: str | None, *, ttl_minutes: int = 180) -> bool:
 
 def _fmt_change(change: float | None) -> str:
     if change is None:
-        return "вљЄпёЏ РЅ/Рґ"
+        return "⚪️ н/д"
     value = float(change)
-    icon = "рџџў" if value > 0 else "рџ”ґ" if value < 0 else "вљЄпёЏ"
+    icon = "🟢" if value > 0 else "🔴" if value < 0 else "⚪️"
     return f"{icon} {value:+.1f}%"
 
 
@@ -294,13 +293,13 @@ def _route_markup(lang: str) -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(
         inline_keyboard=[
             [
-                InlineKeyboardButton(text=("рџЏ  Р”РѕРј" if lang == "ru" else "рџЏ  Home"), url=f"https://yandex.ru/maps/?rtext=~{quote_plus(f'{HOME_COORDS[0]:.6f},{HOME_COORDS[1]:.6f}')}&rtt=auto"),
-                InlineKeyboardButton(text=("рџЏў Р Р°Р±РѕС‚Р°" if lang == "ru" else "рџЏў Work"), url=f"https://yandex.ru/maps/?rtext=~{quote_plus(f'{WORK_COORDS[0]:.6f},{WORK_COORDS[1]:.6f}')}&rtt=auto"),
+                InlineKeyboardButton(text=("🏠 Дом" if lang == "ru" else "🏠 Home"), url=f"https://yandex.ru/maps/?rtext=~{quote_plus(f'{HOME_COORDS[0]:.6f},{HOME_COORDS[1]:.6f}')}&rtt=auto"),
+                InlineKeyboardButton(text=("🏢 Работа" if lang == "ru" else "🏢 Work"), url=f"https://yandex.ru/maps/?rtext=~{quote_plus(f'{WORK_COORDS[0]:.6f},{WORK_COORDS[1]:.6f}')}&rtt=auto"),
             ],
-            [InlineKeyboardButton(text=("рџ“Ќ Р’РІРµСЃС‚Рё Р°РґСЂРµСЃ" if lang == "ru" else "рџ“Ќ Enter address"), url="https://yandex.ru/maps/?rtext=~&rtt=auto")],
+            [InlineKeyboardButton(text=("📍 Ввести адрес" if lang == "ru" else "📍 Enter address"), url="https://yandex.ru/maps/?rtext=~&rtt=auto")],
             [
-                InlineKeyboardButton(text=("вЏ± ETA Р”РѕРј" if lang == "ru" else "вЏ± ETA Home"), callback_data="route:eta:home"),
-                InlineKeyboardButton(text=("вЏ± ETA Р Р°Р±РѕС‚Р°" if lang == "ru" else "вЏ± ETA Work"), callback_data="route:eta:work"),
+                InlineKeyboardButton(text=("⏱ ETA Дом" if lang == "ru" else "⏱ ETA Home"), callback_data="route:eta:home"),
+                InlineKeyboardButton(text=("⏱ ETA Работа" if lang == "ru" else "⏱ ETA Work"), callback_data="route:eta:work"),
             ],
         ]
     )
@@ -341,63 +340,7 @@ def _trim_text(value: str, max_len: int = 90) -> str:
     clean = " ".join((value or "").split())
     if len(clean) <= max_len:
         return clean
-    return clean[: max_len - 1].rstrip() + "вЂ¦"
-
-
-def _todo_render(user_id: int, lang: str) -> str:
-    rows = todo_list_open(user_id=user_id, limit=20)
-    if not rows:
-        return t(lang, "todo_empty")
-    lines = [t(lang, "todo_list_title")]
-    for todo_id, text, _created_at in rows:
-        lines.append(f"{todo_id}. {_trim_text(str(text), 84)}")
-    return "\n".join(lines)
-
-
-def _todo_markup(lang: str) -> InlineKeyboardMarkup:
-    return _callback_markup(_TODO_PANEL_ROWS[_lang_key(lang)])
-
-
-def _subs_markup(lang: str) -> InlineKeyboardMarkup:
-    return _callback_markup(_SUBS_PANEL_ROWS[_lang_key(lang)])
-
-
-def _render_subs_list(user_id: int, lang: str) -> str:
-    rows = subs_list(user_id=user_id)
-    if not rows:
-        return t(lang, "subs_empty")
-    today = date.today()
-    lines = [t(lang, "subs_list_title")]
-    for sub_id, name, next_date, period in rows:
-        try:
-            due = date.fromisoformat(str(next_date))
-            delta = (due - today).days
-            if delta >= 0:
-                left = f"{delta} РґРЅ." if lang == "ru" else f"{delta}d"
-            else:
-                late = abs(delta)
-                left = f"РїСЂРѕСЃСЂРѕС‡РµРЅРѕ {late} РґРЅ." if lang == "ru" else f"overdue {late}d"
-        except ValueError:
-            left = str(next_date)
-        lines.append(f"#{sub_id} {_trim_text(str(name), 42)} вЂ” {next_date} ({period}, {left})")
-    return "\n".join(lines)
-
-
-def _render_subs_check(user_id: int, lang: str) -> str:
-    rows = subs_due_within(user_id=user_id, days=7)
-    if not rows:
-        return t(lang, "subs_check_title") + "\n\n" + ("РљСЂРёС‚РёС‡РЅС‹С… СЃРїРёСЃР°РЅРёР№ РІ Р±Р»РёР¶Р°Р№С€РёРµ 7 РґРЅРµР№ РЅРµС‚." if lang == "ru" else "No due subscriptions in next 7 days.")
-    lines = [t(lang, "subs_check_title")]
-    today = date.today()
-    for sub_id, name, next_date, period in rows:
-        try:
-            due = date.fromisoformat(str(next_date))
-            delta = (due - today).days
-            days_text = f"{delta} РґРЅ." if lang == "ru" else f"{delta}d"
-        except ValueError:
-            days_text = str(next_date)
-        lines.append(f"#{sub_id} {_trim_text(str(name), 42)} вЂ” {next_date} ({period}, {days_text})")
-    return "\n".join(lines)
+    return clean[: max_len - 1].rstrip() + "…"
 
 
 def _advance_sub_date(current_iso: str, period: str, steps: int) -> str | None:
@@ -409,6 +352,141 @@ def _advance_sub_date(current_iso: str, period: str, steps: int) -> str | None:
     if not days:
         return None
     return (current + timedelta(days=days * max(1, steps))).isoformat()
+
+
+def _domain_command(user_id: int, command: str, payload: dict[str, object] | None = None) -> dict[str, object]:
+    data = payload or {}
+    try:
+        return handle_command(user_id, command, data)
+    except ValueError:
+        if command == "tasks:done":
+            todo_id = int(data.get("task_id") or 0)
+            done_at = str(data.get("done_at") or _now_iso())
+            return {"ok": bool(todo_mark_done(user_id=user_id, todo_id=todo_id, done_at=done_at))}
+        if command == "tasks:delete":
+            todo_id = int(data.get("task_id") or 0)
+            return {"ok": bool(todo_delete(user_id=user_id, todo_id=todo_id))}
+        if command == "subs:add":
+            name = str(data.get("name") or "").strip()
+            next_date = str(data.get("next_date") or "").strip()
+            period = str(data.get("period") or "").strip().lower()
+            created_at = str(data.get("created_at") or _now_iso())
+            if not name or not next_date or period not in PERIOD_DAYS:
+                raise
+            return {
+                "id": int(
+                    subs_add(
+                        user_id=user_id,
+                        name=name,
+                        next_date=next_date,
+                        period=period,
+                        created_at=created_at,
+                    )
+                )
+            }
+        if command == "subs:delete":
+            sub_id = int(data.get("sub_id") or 0)
+            return {"ok": bool(subs_delete(user_id=user_id, sub_id=sub_id))}
+        if command == "subs:roll":
+            sub_id = int(data.get("sub_id") or 0)
+            steps = int(data.get("steps") or 1)
+            updated_at = str(data.get("updated_at") or _now_iso())
+            row = subs_get(user_id=user_id, sub_id=sub_id)
+            if not row:
+                return {"ok": False, "reason": "not_found"}
+            new_date = _advance_sub_date(str(row[2] or ""), str(row[3] or ""), steps)
+            if not new_date:
+                return {"ok": False, "reason": "bad_date"}
+            ok = subs_update_next_date(user_id=user_id, sub_id=sub_id, next_date=new_date, updated_at=updated_at)
+            return {"ok": bool(ok), "new_date": (new_date if ok else None), "reason": ("update_failed" if not ok else None)}
+        raise
+
+
+def _todo_render(user_id: int, lang: str) -> str:
+    try:
+        data = _domain_command(user_id, "tasks:list", {"limit": 20})
+    except ValueError:
+        return t(lang, "error_generic")
+    items = data.get("items")
+    if not isinstance(items, list) or not items:
+        return t(lang, "todo_empty")
+    lines = [t(lang, "todo_list_title")]
+    for item in items:
+        if not isinstance(item, dict):
+            continue
+        todo_id = int(item.get("id", 0))
+        text = str(item.get("text", ""))
+        lines.append(f"{todo_id}. {_trim_text(text, 84)}")
+    return "\n".join(lines) if len(lines) > 1 else t(lang, "todo_empty")
+
+
+def render_tasks_text(user_id: int, lang: str) -> str:
+    """Compatibility alias used by smoke tests and legacy call sites."""
+    return _todo_render(user_id, lang)
+
+
+def _todo_markup(lang: str) -> InlineKeyboardMarkup:
+    return _callback_markup(_TODO_PANEL_ROWS[_lang_key(lang)])
+
+
+def _subs_markup(lang: str) -> InlineKeyboardMarkup:
+    return _callback_markup(_SUBS_PANEL_ROWS[_lang_key(lang)])
+
+
+def _render_subs_list(user_id: int, lang: str) -> str:
+    try:
+        data = _domain_command(user_id, "subs:list")
+    except ValueError:
+        return t(lang, "error_generic")
+    items = data.get("items")
+    if not isinstance(items, list) or not items:
+        return t(lang, "subs_empty")
+    today = date.today()
+    lines = [t(lang, "subs_list_title")]
+    for item in items:
+        if not isinstance(item, dict):
+            continue
+        sub_id = int(item.get("id", 0))
+        name = _trim_text(str(item.get("name", "")), 42)
+        next_date = str(item.get("next_date", ""))
+        period = str(item.get("period", ""))
+        try:
+            due = date.fromisoformat(next_date)
+            delta = (due - today).days
+            if delta >= 0:
+                left = f"{delta} дн." if lang == "ru" else f"{delta}d"
+            else:
+                late = abs(delta)
+                left = f"просрочено {late} дн." if lang == "ru" else f"overdue {late}d"
+        except ValueError:
+            left = next_date
+        lines.append(f"#{sub_id} {name} — {next_date} ({period}, {left})")
+    return "\n".join(lines) if len(lines) > 1 else t(lang, "subs_empty")
+
+
+def render_subs_list_text(user_id: int, lang: str) -> str:
+    """Compatibility alias used by smoke tests and legacy call sites."""
+    return _render_subs_list(user_id, lang)
+
+
+def _render_subs_check(user_id: int, lang: str) -> str:
+    rows = subs_due_within(user_id=user_id, days=7)
+    title = t(lang, "subs_check_title")
+    if not rows:
+        no_due = "Критичных списаний в ближайшие 7 дней нет." if lang == "ru" else "No due subscriptions in next 7 days."
+        return f"{title}\n\n{no_due}"
+    today = date.today()
+    lines = [title]
+    for sub_id, name, next_date, period in rows:
+        next_date_str = str(next_date or "")
+        try:
+            due = date.fromisoformat(next_date_str)
+            delta = (due - today).days
+            days_text = f"{delta} дн." if lang == "ru" else f"{delta}d"
+        except ValueError:
+            days_text = next_date_str
+        lines.append(f"#{int(sub_id)} {_trim_text(str(name or ''), 42)} — {next_date_str} ({str(period or '')}, {days_text})")
+    return "\n".join(lines)
 
 
 def _route_target(user_id: int) -> str | None:
@@ -428,10 +506,10 @@ def _clear_route_target(user_id: int) -> None:
 
 
 def _route_location_markup(lang: str) -> ReplyKeyboardMarkup:
-    cancel_label = "РћС‚РјРµРЅР° ETA" if lang == "ru" else "Cancel ETA"
+    cancel_label = "Отмена ETA" if lang == "ru" else "Cancel ETA"
     return ReplyKeyboardMarkup(
         keyboard=[
-            [KeyboardButton(text="рџ“Ќ " + ("РћС‚РїСЂР°РІРёС‚СЊ РіРµРѕР»РѕРєР°С†РёСЋ" if lang == "ru" else "Send location"), request_location=True)],
+            [KeyboardButton(text="📍 " + ("Отправить геолокацию" if lang == "ru" else "Send location"), request_location=True)],
             [KeyboardButton(text=cancel_label)],
         ],
         resize_keyboard=True,
@@ -452,13 +530,13 @@ def _parse_checkin_payload(payload: str) -> tuple[str, str, int | None] | None:
         key, value = part.split("=", 1)
         key = key.strip().lower()
         value = value.strip()
-        if key in {"done", "СЃРґРµР»Р°Р»"}:
+        if key in {"done", "сделал"}:
             recognized = True
             done_text = value
-        elif key in {"carry", "РїРµСЂРµРЅРѕСЃ"}:
+        elif key in {"carry", "перенос"}:
             recognized = True
             carry_text = value
-        elif key in {"energy", "СЌРЅРµСЂРіРёСЏ"}:
+        elif key in {"energy", "энергия"}:
             recognized = True
             try:
                 parsed = int(value)
@@ -504,14 +582,14 @@ async def _edit_or_reply(
 
 
 async def _reply_todo(message: types.Message, user_id: int, lang: str, *, prefix: str | None = None) -> None:
-    text = _todo_render(user_id, lang)
+    text = render_tasks_text(user_id, lang)
     if prefix:
         text = f"{prefix}\n\n{text}"
     await message.reply(text, reply_markup=_todo_markup(lang))
 
 
 async def _reply_subs_list(message: types.Message, user_id: int, lang: str, *, prefix: str | None = None) -> None:
-    text = _render_subs_list(user_id, lang)
+    text = render_subs_list_text(user_id, lang)
     if prefix:
         text = f"{prefix}\n\n{text}"
     await message.reply(text, reply_markup=_subs_markup(lang))
@@ -604,19 +682,19 @@ def build_commands_router(ctx: AppContext) -> Router:
             btc = cg.get("bitcoin", {})
             eth = cg.get("ethereum", {})
             code = runtime.coingecko_vs.upper()
-            lines.append(f"{t(lang, 'market_btc')}: {code} {float(btc.get(runtime.coingecko_vs, 0)):.2f} | 24С‡ {_fmt_change(btc.get(f'{runtime.coingecko_vs}_24h_change'))}")
-            lines.append(f"{t(lang, 'market_eth')}: {code} {float(eth.get(runtime.coingecko_vs, 0)):.2f} | 24С‡ {_fmt_change(eth.get(f'{runtime.coingecko_vs}_24h_change'))}")
+            lines.append(f"{t(lang, 'market_btc')}: {code} {float(btc.get(runtime.coingecko_vs, 0)):.2f} | 24ч {_fmt_change(btc.get(f'{runtime.coingecko_vs}_24h_change'))}")
+            lines.append(f"{t(lang, 'market_eth')}: {code} {float(eth.get(runtime.coingecko_vs, 0)):.2f} | 24ч {_fmt_change(eth.get(f'{runtime.coingecko_vs}_24h_change'))}")
             _cache_set_json("price_cache:coingecko", cg)
         else:
             errs.append("CoinGecko")
         if not isinstance(fx, Exception):
-            lines.append(f"{t(lang, 'market_usd_rub')}: RUB {float(fx.get('usd_rub', 0)):.2f} | 24С‡ {_fmt_change(fx.get('usd_rub_24h_change'))}")
-            lines.append(f"{t(lang, 'market_eur_rub')}: RUB {float(fx.get('eur_rub', 0)):.2f} | 24С‡ {_fmt_change(fx.get('eur_rub_24h_change'))}")
+            lines.append(f"{t(lang, 'market_usd_rub')}: RUB {float(fx.get('usd_rub', 0)):.2f} | 24ч {_fmt_change(fx.get('usd_rub_24h_change'))}")
+            lines.append(f"{t(lang, 'market_eur_rub')}: RUB {float(fx.get('eur_rub', 0)):.2f} | 24ч {_fmt_change(fx.get('eur_rub_24h_change'))}")
             _cache_set_json("price_cache:fx", fx)
         else:
             errs.append("FX")
         if not isinstance(fuel, Exception):
-            lines.append(f"{t(lang, 'market_fuel95')}: RUB {float(fuel.get('price_rub') or 0):.2f} | 24С‡ {_fmt_change(fuel.get('change_24h_pct'))}")
+            lines.append(f"{t(lang, 'market_fuel95')}: RUB {float(fuel.get('price_rub') or 0):.2f} | 24ч {_fmt_change(fuel.get('change_24h_pct'))}")
             _cache_set_json("price_cache:fuel95", fuel)
         else:
             errs.append("Fuel95")
@@ -668,7 +746,7 @@ def build_commands_router(ctx: AppContext) -> Router:
         price_row = get_cache_value("price_cache:coingecko")
         weather_row = get_cache_value("weather_cache:summary")
         def dot(ok: bool) -> str:
-            return "рџџў" if ok else "рџ”ґ"
+            return "🟢" if ok else "🔴"
 
         lines = [
             t(lang, "status_title"),
@@ -680,7 +758,7 @@ def build_commands_router(ctx: AppContext) -> Router:
             f"{dot(fit_ok)} Fitness ({fit_note})",
             "",
             (
-                f"РљСЌС€: СЂС‹РЅРѕРє {'СЃРІРµР¶РёР№' if _is_cache_fresh(price_row[1] if price_row else None) else 'РЅРµС‚'}, РїРѕРіРѕРґР° {'СЃРІРµР¶Р°СЏ' if _is_cache_fresh(weather_row[1] if weather_row else None) else 'РЅРµС‚'}"
+                f"Кэш: рынок {'свежий' if _is_cache_fresh(price_row[1] if price_row else None) else 'нет'}, погода {'свежая' if _is_cache_fresh(weather_row[1] if weather_row else None) else 'нет'}"
                 if lang == "ru"
                 else f"Cache: market {'fresh' if _is_cache_fresh(price_row[1] if price_row else None) else 'none'}, weather {'fresh' if _is_cache_fresh(weather_row[1] if weather_row else None) else 'none'}"
             ),
@@ -740,14 +818,14 @@ def build_commands_router(ctx: AppContext) -> Router:
             dst_lat=dst_lat,
             dst_lon=dst_lon,
         )
-        title = "Р”РѕРј" if (target == "home" and lang == "ru") else "Р Р°Р±РѕС‚Р°" if lang == "ru" else "Home" if target == "home" else "Work"
+        title = "Дом" if (target == "home" and lang == "ru") else "Работа" if lang == "ru" else "Home" if target == "home" else "Work"
         await message.reply(
             t(lang, "route_eta_done", title=title, minutes=eta_min),
             reply_markup=ReplyKeyboardRemove(),
         )
         _clear_route_target(uid)
 
-    @router.message(F.text.in_({"РћС‚РјРµРЅР° ETA", "Cancel ETA"}))
+    @router.message(F.text.in_({"Отмена ETA", "Cancel ETA"}))
     async def route_eta_cancel(message: types.Message) -> None:
         uid = message.from_user.id if message.from_user else 0
         _runtime, _profile, lang = _profile_runtime_settings(ctx, uid)
@@ -762,7 +840,7 @@ def build_commands_router(ctx: AppContext) -> Router:
         panel = _todo_markup(lang)
 
         if action == "list":
-            text = _todo_render(uid, lang)
+            text = render_tasks_text(uid, lang)
             await _edit_or_reply(callback, text, reply_markup=panel)
             await callback.answer("", show_alert=False)
             return
@@ -773,8 +851,12 @@ def build_commands_router(ctx: AppContext) -> Router:
                 await callback.answer(t(lang, "todo_empty"), show_alert=False)
                 return
             todo_id = int(rows[0][0])
-            todo_mark_done(user_id=uid, todo_id=todo_id, done_at=_now_iso())
-            text = f"{t(lang, 'todo_done', todo_id=todo_id)}\n\n{_todo_render(uid, lang)}"
+            try:
+                _domain_command(uid, "tasks:done", {"task_id": todo_id, "done_at": _now_iso()})
+            except ValueError:
+                await callback.answer(t(lang, "error_generic"), show_alert=False)
+                return
+            text = f"{t(lang, 'todo_done', todo_id=todo_id)}\n\n{render_tasks_text(uid, lang)}"
             await _edit_or_reply(callback, text, reply_markup=panel)
             await callback.answer(t(lang, "done_short"), show_alert=False)
             return
@@ -785,14 +867,18 @@ def build_commands_router(ctx: AppContext) -> Router:
                 await callback.answer(t(lang, "todo_empty"), show_alert=False)
                 return
             todo_id = int(rows[0][0])
-            todo_delete(user_id=uid, todo_id=todo_id)
-            text = f"{t(lang, 'todo_deleted', todo_id=todo_id)}\n\n{_todo_render(uid, lang)}"
+            try:
+                _domain_command(uid, "tasks:delete", {"task_id": todo_id})
+            except ValueError:
+                await callback.answer(t(lang, "error_generic"), show_alert=False)
+                return
+            text = f"{t(lang, 'todo_deleted', todo_id=todo_id)}\n\n{render_tasks_text(uid, lang)}"
             await _edit_or_reply(callback, text, reply_markup=panel)
             await callback.answer(t(lang, "done_short"), show_alert=False)
             return
 
         if action == "add_hint":
-            hint = "/todo add <С‚РµРєСЃС‚>" if lang == "ru" else "/todo add <text>"
+            hint = "/todo add <текст>" if lang == "ru" else "/todo add <text>"
             if callback.message:
                 await callback.message.reply(hint, reply_markup=panel)
             await callback.answer("", show_alert=False)
@@ -808,7 +894,7 @@ def build_commands_router(ctx: AppContext) -> Router:
         panel = _subs_markup(lang)
 
         if action == "list":
-            text = _render_subs_list(uid, lang)
+            text = render_subs_list_text(uid, lang)
             await _edit_or_reply(callback, text, reply_markup=panel)
             await callback.answer("", show_alert=False)
             return
@@ -844,11 +930,11 @@ def build_commands_router(ctx: AppContext) -> Router:
             if arg in {"on", "off"}:
                 user_settings_set_energy_autopilot(user_id=uid, enabled=(arg == "on"), updated_at=_now_iso())
                 if lang == "ru":
-                    await message.reply(f"Р­РЅРµСЂРіРѕ-Р°РІС‚РѕРїРёР»РѕС‚: {'РІРєР»' if arg == 'on' else 'РІС‹РєР»'}")
+                    await message.reply(f"Энерго-автопилот: {'вкл' if arg == 'on' else 'выкл'}")
                 else:
                     await message.reply(f"Energy autopilot: {arg}")
             else:
-                await message.reply("Р¤РѕСЂРјР°С‚: /autopilot on|off" if lang == "ru" else "Format: /autopilot on|off")
+                await message.reply("Формат: /autopilot on|off" if lang == "ru" else "Format: /autopilot on|off")
             return
         if cmd == "mode":
             if len(parts) == 1:
@@ -875,7 +961,7 @@ def build_commands_router(ctx: AppContext) -> Router:
             return
         # Keep these commands concise and deterministic.
         if cmd == "settings":
-            await message.reply("\n".join([("<b>РќР°СЃС‚СЂРѕР№РєРё</b>" if lang == "ru" else "<b>Settings</b>"), "", f"Mode: <code>{html_escape(str(profile.get('llm_mode') or 'normal'))}</code>", f"Confidence: <code>{'on' if bool(profile.get('show_confidence')) else 'off'}</code>", f"Weather city: <code>{html_escape(str(profile.get('weather_city') or runtime.weather_city))}</code>"]), parse_mode="HTML")
+            await message.reply("\n".join([("<b>Настройки</b>" if lang == "ru" else "<b>Settings</b>"), "", f"Mode: <code>{html_escape(str(profile.get('llm_mode') or 'normal'))}</code>", f"Confidence: <code>{'on' if bool(profile.get('show_confidence')) else 'off'}</code>", f"Weather city: <code>{html_escape(str(profile.get('weather_city') or runtime.weather_city))}</code>"]), parse_mode="HTML")
             return
         if cmd == "todo":
             if len(parts) == 1:
@@ -891,7 +977,12 @@ def build_commands_router(ctx: AppContext) -> Router:
                 if not text_payload:
                     await message.reply(t(lang, "todo_bad_format"))
                     return
-                todo_id = todo_add(user_id=uid, text=text_payload, created_at=_now_iso())
+                try:
+                    result = _domain_command(uid, "tasks:add", {"text": text_payload, "created_at": _now_iso()})
+                except ValueError:
+                    await message.reply(t(lang, "error_generic"))
+                    return
+                todo_id = int(result.get("id", 0))
                 await _reply_todo(message, uid, lang, prefix=t(lang, "todo_added", todo_id=todo_id))
                 return
             if sub == "done":
@@ -901,7 +992,12 @@ def build_commands_router(ctx: AppContext) -> Router:
                     await message.reply(t(lang, "todo_bad_format"))
                     return
                 todo_id = int(value)
-                ok = todo_mark_done(user_id=uid, todo_id=todo_id, done_at=_now_iso())
+                try:
+                    result = _domain_command(uid, "tasks:done", {"task_id": todo_id, "done_at": _now_iso()})
+                except ValueError:
+                    await message.reply(t(lang, "error_generic"))
+                    return
+                ok = bool(result.get("ok"))
                 await _reply_todo(
                     message,
                     uid,
@@ -916,7 +1012,12 @@ def build_commands_router(ctx: AppContext) -> Router:
                     await message.reply(t(lang, "todo_bad_format"))
                     return
                 todo_id = int(value)
-                ok = todo_delete(user_id=uid, todo_id=todo_id)
+                try:
+                    result = _domain_command(uid, "tasks:delete", {"task_id": todo_id})
+                except ValueError:
+                    await message.reply(t(lang, "error_generic"))
+                    return
+                ok = bool(result.get("ok"))
                 await _reply_todo(
                     message,
                     uid,
@@ -955,7 +1056,16 @@ def build_commands_router(ctx: AppContext) -> Router:
                 if period not in PERIOD_DAYS:
                     await message.reply(t(lang, "subs_bad_period"))
                     return
-                sub_id = subs_add(user_id=uid, name=name, next_date=date_raw, period=period, created_at=_now_iso())
+                try:
+                    result = _domain_command(
+                        uid,
+                        "subs:add",
+                        {"name": name, "next_date": date_raw, "period": period, "created_at": _now_iso()},
+                    )
+                except ValueError:
+                    await message.reply(t(lang, "error_generic"))
+                    return
+                sub_id = int(result.get("id", 0))
                 await _reply_subs_list(message, uid, lang, prefix=t(lang, "subs_added", sub_id=sub_id))
                 return
             if sub == "del":
@@ -965,7 +1075,12 @@ def build_commands_router(ctx: AppContext) -> Router:
                     await message.reply(t(lang, "subs_help"))
                     return
                 sub_id = int(value)
-                ok = subs_delete(user_id=uid, sub_id=sub_id)
+                try:
+                    result = _domain_command(uid, "subs:delete", {"sub_id": sub_id})
+                except ValueError:
+                    await message.reply(t(lang, "error_generic"))
+                    return
+                ok = bool(result.get("ok"))
                 await _reply_subs_list(
                     message,
                     uid,
@@ -980,21 +1095,23 @@ def build_commands_router(ctx: AppContext) -> Router:
                     return
                 sub_id = int(payload[2].strip())
                 steps = int(payload[3].strip()) if len(payload) > 3 and payload[3].strip().isdigit() else 1
-                row = subs_get(user_id=uid, sub_id=sub_id)
-                if not row:
+                try:
+                    result = _domain_command(uid, "subs:roll", {"sub_id": sub_id, "steps": steps, "updated_at": _now_iso()})
+                except ValueError:
+                    await message.reply(t(lang, "error_generic"))
+                    return
+                if str(result.get("reason") or "") == "not_found":
                     await message.reply(t(lang, "subs_not_found"))
                     return
-                _id, _name, next_date, period = row
-                new_date = _advance_sub_date(str(next_date), str(period), steps)
+                new_date = str(result.get("new_date") or "")
                 if not new_date:
                     await message.reply(t(lang, "subs_bad_date"))
                     return
-                ok = subs_update_next_date(user_id=uid, sub_id=sub_id, next_date=new_date, updated_at=_now_iso())
                 await _reply_subs_list(
                     message,
                     uid,
                     lang,
-                    prefix=(t(lang, "subs_rolled", sub_id=sub_id, date=new_date) if ok else t(lang, "subs_not_found")),
+                    prefix=t(lang, "subs_rolled", sub_id=sub_id, date=new_date),
                 )
                 return
             await message.reply(t(lang, "subs_help"))
@@ -1055,14 +1172,14 @@ def build_commands_router(ctx: AppContext) -> Router:
             if not rows:
                 await message.reply(f"{t(lang, 'profile_title')}\n\n{t(lang, 'profile_empty')}", parse_mode="HTML")
             else:
-                await message.reply("\n".join([t(lang, "profile_title"), ""] + [f"вЂў <b>{html_escape(k)}</b>: {html_escape(v)}" for k, v, _ in rows]), parse_mode="HTML")
+                await message.reply("\n".join([t(lang, "profile_title"), ""] + [f"• <b>{html_escape(k)}</b>: {html_escape(v)}" for k, v, _ in rows]), parse_mode="HTML")
             return
-        if cmd == "timeline":
+        if cmd == "timeline": 
             rows = memory_timeline_list(user_id=uid, limit=25)
             if not rows:
-                await message.reply("РџРѕРєР° РїСѓСЃС‚Рѕ." if lang == "ru" else "No timeline entries yet.")
+                await message.reply("Пока пусто." if lang == "ru" else "No timeline entries yet.")
             else:
-                lines = ["<b>Memory Timeline</b>", ""] + [f"{'вњ…' if bool(vf) else 'в–«пёЏ'} <b>{html_escape(str(k))}</b>: {html_escape(str(v))} (<code>{html_escape(str(ts))}</code>, conf={float(cf):.2f})" for k, v, vf, cf, ts in rows]
+                lines = ["<b>Memory Timeline</b>", ""] + [f"{'✅' if bool(vf) else '▫️'} <b>{html_escape(str(k))}</b>: {html_escape(str(v))} (<code>{html_escape(str(ts))}</code>, conf={float(cf):.2f})" for k, v, vf, cf, ts in rows]
                 await message.reply("\n".join(lines), parse_mode="HTML")
 
     @router.message(Command("weekly"))
@@ -1103,7 +1220,6 @@ def build_commands_router(ctx: AppContext) -> Router:
         cmd = extract_command((message.text or "").strip())
         if not cmd or cmd not in ctx.known_commands:
             return
-        await message.reply("РљРѕРјР°РЅРґР° РґРѕСЃС‚СѓРїРЅР° РІ РјРµРЅСЋ /help." if lang == "ru" else "Command is available in /help.")
+        await message.reply("Команда доступна в меню /help." if lang == "ru" else "Command is available in /help.")
 
     return router
-

@@ -24,17 +24,17 @@ class AssistantMemoryDBTests(unittest.TestCase):
 
     def test_memory_lifecycle(self):
         now = datetime.now().isoformat(timespec="seconds")
-        db.memory_set(user_id=10, key="city", value="РњРѕСЃРєРІР°", updated_at=now)
-        self.assertEqual(db.memory_get(user_id=10, key="city"), "РњРѕСЃРєРІР°")
+        db.memory_set(user_id=10, key="city", value="Москва", updated_at=now)
+        self.assertEqual(db.memory_get(user_id=10, key="city"), "Москва")
 
         rows = db.memory_list(user_id=10, limit=10)
         self.assertEqual(len(rows), 1)
         self.assertEqual(rows[0][0], "city")
-        self.assertEqual(rows[0][1], "РњРѕСЃРєРІР°")
+        self.assertEqual(rows[0][1], "Москва")
 
         context = db.memory_build_context(user_id=10, limit=10)
         self.assertIn("User profile memory:", context)
-        self.assertIn("- city: РњРѕСЃРєРІР°", context)
+        self.assertIn("- city: Москва", context)
 
         self.assertTrue(db.memory_delete(user_id=10, key="city"))
         self.assertIsNone(db.memory_get(user_id=10, key="city"))

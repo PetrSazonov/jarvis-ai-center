@@ -12,6 +12,8 @@ from db import (
     fitness_stats_recent,
     set_cache_value,
     subs_due_within,
+    todo_due_reminders,
+    todo_mark_reminder_sent,
     todo_stats_recent,
     user_settings_get_full,
 )
@@ -182,6 +184,54 @@ async def auto_digest_worker(bot: Bot, settings: Settings, logger) -> None:
             raise
         except Exception as exc:
             logger.exception("event=auto_digest_error error=%s", exc)
+            await asyncio.sleep(30)
+
+
+async def auto_todo_reminder_worker(bot: Bot, settings: Settings, logger) -> None:
+    if not bool(getattr(settings, "enable_task_reminders", True)):
+        logger.info("event=todo_reminder_skip enabled=false")
+        return
+
+    interval = max(20, int(getattr(settings, "task_reminder_interval_seconds", 45)))
+    logger.info("event=todo_reminder_start interval_seconds=%s", interval)
+
+    while True:
+        try:
+            now_iso = now_dt(settings.timezone_name).isoformat(timespec="seconds")
+            rows = todo_due_reminders(now_iso=now_iso, limit=40)
+            if rows:
+                logger.info("event=todo_reminder_batch size=%s", len(rows))
+            for todo_id, user_id, text, due_date, remind_at in rows:
+                task_title = " ".join(str(text or "").split())
+                task_title = task_title[:180] + "..." if len(task_title) > 180 else task_title
+                due_line = f"Срок: {due_date}" if due_date else "Срок не указан"
+                reminder_line = f"Напоминание: {remind_at}" if remind_at else ""
+                parts = [
+                    "Напоминание по задаче",
+                    f"#{todo_id} {task_title}",
+                    due_line,
+                ]
+                if reminder_line:
+                    parts.append(reminder_line)
+                parts.append("Открыть Day OS: /today -> /todo")
+                message = "\n".join(parts)
+                try:
+                    await bot.send_message(chat_id=user_id, text=message, disable_web_page_preview=True)
+                    todo_mark_reminder_sent(todo_id=todo_id, sent_at=now_iso)
+                    logger.info("event=todo_reminder_sent user_id=%s todo_id=%s", user_id, todo_id)
+                except Exception as send_exc:  # noqa: BLE001
+                    logger.warning(
+                        "event=todo_reminder_send_failed user_id=%s todo_id=%s error=%s",
+                        user_id,
+                        todo_id,
+                        send_exc.__class__.__name__,
+                    )
+            await asyncio.sleep(interval)
+        except asyncio.CancelledError:
+            logger.info("event=todo_reminder_cancelled")
+            raise
+        except Exception as exc:  # noqa: BLE001
+            logger.exception("event=todo_reminder_error error=%s", exc)
             await asyncio.sleep(30)
 
 

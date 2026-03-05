@@ -41,15 +41,44 @@ def handle_command(
         text = str(data.get("text") or "").strip()
         if not text:
             raise ValueError("text is required")
+        notes = str(data.get("notes") or "").strip()
         created_at = str(data.get("created_at") or datetime.now().isoformat(timespec="seconds"))
-        task_id = tasks.add_task(user_id=user_id, text=text, created_at=created_at)
+        due_date = str(data.get("due_date") or "").strip() or None
+        remind_at = str(data.get("remind_at") or "").strip() or None
+        remind_telegram = bool(data.get("remind_telegram", True))
+        task_id = tasks.add_task(
+            user_id=user_id,
+            text=text,
+            created_at=created_at,
+            notes=notes,
+            due_date=due_date,
+            remind_at=remind_at,
+            remind_telegram=remind_telegram,
+        )
         result = {"id": task_id}
         emit_event(
             collector,
             name="tasks.added",
             user_id=user_id,
-            payload={"task_id": task_id, "text": text},
+            payload={
+                "task_id": task_id,
+                "text": text,
+                "notes": notes,
+                "due_date": due_date,
+                "remind_at": remind_at,
+                "remind_telegram": remind_telegram,
+            },
         )
+        return _response(result, collector, return_events=return_events)
+
+    if cmd == "tasks:calendar":
+        limit_raw = data.get("limit", 800)
+        try:
+            limit = int(limit_raw)
+        except (TypeError, ValueError):
+            limit = 800
+        limit = max(1, min(1200, limit))
+        result = {"items": tasks.list_calendar_tasks(user_id=user_id, limit=limit)}
         return _response(result, collector, return_events=return_events)
 
     if cmd == "subs:list":
@@ -91,6 +120,60 @@ def handle_command(
             )
         return _response(result, collector, return_events=return_events)
 
+    if cmd == "tasks:update":
+        task_id_raw = data.get("task_id")
+        try:
+            task_id = int(task_id_raw)
+        except (TypeError, ValueError):
+            raise ValueError("task_id is required") from None
+
+        has_text = "text" in data
+        has_notes = "notes" in data
+        has_due_date = "due_date" in data
+        has_remind_at = "remind_at" in data
+        has_remind_telegram = "remind_telegram" in data
+        if not (has_text or has_notes or has_due_date or has_remind_at or has_remind_telegram):
+            raise ValueError("no task fields provided")
+
+        text = str(data.get("text") or "").strip() if has_text else None
+        if has_text and not text:
+            raise ValueError("text cannot be empty")
+        notes = str(data.get("notes") or "").strip() if has_notes else None
+        due_date = (str(data.get("due_date") or "").strip() or None) if has_due_date else None
+        remind_at = (str(data.get("remind_at") or "").strip() or None) if has_remind_at else None
+        remind_telegram = bool(data.get("remind_telegram")) if has_remind_telegram else None
+
+        ok = tasks.update_task(
+            user_id=user_id,
+            todo_id=task_id,
+            text=text,
+            has_text=has_text,
+            notes=notes,
+            has_notes=has_notes,
+            due_date=due_date,
+            has_due_date=has_due_date,
+            remind_at=remind_at,
+            has_remind_at=has_remind_at,
+            remind_telegram=remind_telegram,
+            has_remind_telegram=has_remind_telegram,
+        )
+        result = {"ok": ok}
+        if ok:
+            emit_event(
+                collector,
+                name="tasks.updated",
+                user_id=user_id,
+                payload={
+                    "task_id": task_id,
+                    "text": text if has_text else None,
+                    "notes": notes if has_notes else None,
+                    "due_date": due_date,
+                    "remind_at": remind_at,
+                    "remind_telegram": remind_telegram,
+                },
+            )
+        return _response(result, collector, return_events=return_events)
+
     if cmd == "subs:add":
         name = str(data.get("name") or "").strip()
         next_date = str(data.get("next_date") or "").strip()
@@ -98,19 +181,51 @@ def handle_command(
         if not name or not next_date or not period:
             raise ValueError("name, next_date and period are required")
         created_at = str(data.get("created_at") or datetime.now().isoformat(timespec="seconds"))
+        amount_raw = data.get("amount")
+        amount: float | None
+        if amount_raw is None or str(amount_raw).strip() == "":
+            amount = None
+        else:
+            try:
+                amount = float(amount_raw)
+            except (TypeError, ValueError):
+                raise ValueError("amount must be a number") from None
+        currency = str(data.get("currency") or "RUB").strip().upper() or "RUB"
+        note = str(data.get("note") or "").strip()
+        category = str(data.get("category") or "").strip()
+        autopay = bool(data.get("autopay", True))
+        remind_days_raw = data.get("remind_days", 3)
+        try:
+            remind_days = int(remind_days_raw)
+        except (TypeError, ValueError):
+            remind_days = 3
         sub_id = subs.add_subscription(
             user_id=user_id,
             name=name,
             next_date=next_date,
             period=period,
             created_at=created_at,
+            amount=amount,
+            currency=currency,
+            note=note,
+            category=category,
+            autopay=autopay,
+            remind_days=max(0, remind_days),
         )
         result = {"id": sub_id}
         emit_event(
             collector,
             name="subs.added",
             user_id=user_id,
-            payload={"sub_id": sub_id, "name": name, "next_date": next_date, "period": period},
+            payload={
+                "sub_id": sub_id,
+                "name": name,
+                "next_date": next_date,
+                "period": period,
+                "amount": amount,
+                "currency": currency,
+                "autopay": autopay,
+            },
         )
         return _response(result, collector, return_events=return_events)
 

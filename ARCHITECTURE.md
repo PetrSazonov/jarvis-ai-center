@@ -2,6 +2,18 @@
 
 Этот файл объясняет систему максимально простым языком.
 
+## 0) Линейный core-route (главное)
+Коротко:  
+`Transport (Telegram/Web) -> coordinator -> core domain -> db -> response`
+
+- Telegram-вход: `bot.py` + `handlers/*`
+- Web-вход: `app/api.py`
+- Единая доменная точка: `core/coordinator.py:handle_command(...)`
+- Домен: `core/day_os.py`, `core/tasks.py`, `core/subs.py`
+- Данные: `db.py`
+
+Для короткой навигации есть отдельный файл: `CORE_ROUTE.md`.
+
 ## 1) Что делает `bot.py`
 `bot.py` — это "дирижер":
 1. читает `.env` и собирает `settings`;

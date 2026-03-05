@@ -72,6 +72,8 @@ class Settings:
     fitness_log_chat_id: int | None = None
     enable_prewarm: bool = True
     prewarm_interval_seconds: int = 600
+    enable_task_reminders: bool = True
+    task_reminder_interval_seconds: int = 45
     enable_llm_enhancer: bool = False
     llm_enhancer_timeout_seconds: float = 3.5
     ollama_soft_timeout_seconds: float = 25.0
@@ -124,6 +126,9 @@ def load_settings() -> Settings:
     prewarm_interval_seconds = int(os.getenv("PREWARM_INTERVAL_SECONDS") or "600")
     if prewarm_interval_seconds < 60:
         raise RuntimeError("PREWARM_INTERVAL_SECONDS must be >= 60")
+    task_reminder_interval_seconds = int(os.getenv("TASK_REMINDER_INTERVAL_SECONDS") or "45")
+    if task_reminder_interval_seconds < 20:
+        raise RuntimeError("TASK_REMINDER_INTERVAL_SECONDS must be >= 20")
     ollama_soft_timeout_seconds = float(os.getenv("OLLAMA_SOFT_TIMEOUT_SECONDS") or "25")
     if ollama_soft_timeout_seconds < 5:
         raise RuntimeError("OLLAMA_SOFT_TIMEOUT_SECONDS must be >= 5")
@@ -162,6 +167,8 @@ def load_settings() -> Settings:
         fitness_log_chat_id=fitness_log_chat_id,
         enable_prewarm=_env_bool("ENABLE_PREWARM", True),
         prewarm_interval_seconds=prewarm_interval_seconds,
+        enable_task_reminders=_env_bool("ENABLE_TASK_REMINDERS", True),
+        task_reminder_interval_seconds=task_reminder_interval_seconds,
         enable_llm_enhancer=_env_bool("ENABLE_LLM_ENHANCER", False),
         llm_enhancer_timeout_seconds=float(os.getenv("LLM_ENHANCER_TIMEOUT_SECONDS") or "3.5"),
         ollama_soft_timeout_seconds=ollama_soft_timeout_seconds,

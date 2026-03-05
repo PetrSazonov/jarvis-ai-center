@@ -78,7 +78,7 @@ class TodoCommandRuntimeTests(unittest.IsolatedAsyncioTestCase):
 
         with (
             patch("handlers.commands.user_settings_get_full", return_value={}),
-            patch("handlers.commands.todo_list_open", return_value=[]),
+            patch("handlers.commands.render_tasks_text", return_value="Список задач пуст."),
         ):
             await callback(message)
 
@@ -100,7 +100,7 @@ class TodoCommandRuntimeTests(unittest.IsolatedAsyncioTestCase):
 
         with (
             patch("handlers.commands.user_settings_get_full", return_value={}),
-            patch("handlers.commands.subs_list", return_value=[]),
+            patch("handlers.commands.render_subs_list_text", return_value="Подписок пока нет."),
         ):
             await callback(message)
 
@@ -123,7 +123,7 @@ class TodoCommandRuntimeTests(unittest.IsolatedAsyncioTestCase):
 
         with (
             patch("handlers.commands.user_settings_get_full", return_value={}),
-            patch("handlers.commands.subs_list", return_value=[]),
+            patch("handlers.commands.render_subs_list_text", return_value="Подписок пока нет."),
         ):
             await callback_handler(callback)
 

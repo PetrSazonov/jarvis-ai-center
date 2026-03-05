@@ -91,6 +91,63 @@ FITNESS_PRESET_WORKOUTS: list[dict[str, Any]] = [
     },
 ]
 
+
+GARAGE_DEFAULT_ASSETS: list[dict[str, Any]] = [
+    {
+        "kind": "car",
+        "title": "Mitsubishi Outlander 3G",
+        "year": 2013,
+        "nickname": "Outlander",
+        "maintenance_interval_km": 10000,
+        "docs": [
+            {
+                "label": "Mitsubishi manuals hub (official)",
+                "url": "https://www.mitsubishi-motors.co.uk/manuals",
+                "official": True,
+            },
+            {
+                "label": "Outlander Diesel owners manual PDF (official Mitsubishi UK)",
+                "url": "https://www.mitsubishi-motors.co.uk/files/owners-manuals/Outlander_Diesel_12my_Owners_Manual.pdf",
+                "official": True,
+            },
+        ],
+    },
+    {
+        "kind": "car",
+        "title": "BMW 420i Gran Coupe",
+        "year": 2015,
+        "nickname": "BMW 420i",
+        "maintenance_interval_km": 12000,
+        "docs": [
+            {
+                "label": "BMW owners manual access (official, VIN required)",
+                "url": "https://www.bmwusa.com/owners-manuals.html",
+                "official": True,
+            },
+            {
+                "label": "BMW Driver's Guide / Know your BMW (official)",
+                "url": "https://www.bmw.co.uk/en/topics/owners/bmw-apps/driver-guide.html",
+                "official": True,
+            },
+        ],
+    },
+    {
+        "kind": "moto",
+        "title": "Triumph Trident 660 Black Sapphire",
+        "year": 2023,
+        "nickname": "Trident 660",
+        "maintenance_interval_km": 8000,
+        "docs": [
+            {
+                "label": "Triumph handbooks library (official)",
+                "url": "https://www.triumphinstructions.com/",
+                "official": True,
+            },
+        ],
+    },
+]
+
+
 def _connect():
     return sqlite3.connect(DATABASE_NAME)
 
@@ -374,6 +431,47 @@ def init_db():
         )
         """
     )
+    cursor.execute(
+        """
+        CREATE TABLE IF NOT EXISTS rag_vectors (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER NOT NULL,
+            source TEXT NOT NULL,
+            record_id TEXT NOT NULL,
+            title TEXT NOT NULL DEFAULT '',
+            snippet TEXT NOT NULL DEFAULT '',
+            ts TEXT NOT NULL DEFAULT '',
+            meta_json TEXT NOT NULL DEFAULT '{}',
+            embedding_json TEXT NOT NULL,
+            updated_at TEXT NOT NULL,
+            UNIQUE(user_id, source, record_id)
+        )
+        """
+    )
+    cursor.execute(
+        """
+        CREATE TABLE IF NOT EXISTS garage_assets (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER NOT NULL,
+            kind TEXT NOT NULL DEFAULT 'car',
+            title TEXT NOT NULL,
+            year INTEGER,
+            nickname TEXT DEFAULT '',
+            vin TEXT DEFAULT '',
+            plate TEXT DEFAULT '',
+            mileage_km INTEGER NOT NULL DEFAULT 0,
+            last_service_km INTEGER,
+            maintenance_interval_km INTEGER NOT NULL DEFAULT 10000,
+            maintenance_due_date TEXT,
+            insurance_until TEXT,
+            tech_inspection_until TEXT,
+            note TEXT DEFAULT '',
+            docs_json TEXT NOT NULL DEFAULT '[]',
+            created_at TEXT NOT NULL,
+            updated_at TEXT NOT NULL
+        )
+        """
+    )
     _ensure_column(cursor, "user_settings", "lang", "TEXT")
     _ensure_column(cursor, "user_settings", "timezone_name", "TEXT")
     _ensure_column(cursor, "user_settings", "weather_city", "TEXT")
@@ -391,12 +489,33 @@ def init_db():
     _ensure_column(cursor, "assistant_memory", "is_verified", "INTEGER NOT NULL DEFAULT 0")
     _ensure_column(cursor, "assistant_memory", "confidence", "REAL NOT NULL DEFAULT 0.5")
 
+    # Task scheduling/reminder extension (backward compatible columns).
+    _ensure_column(cursor, "todo_items", "due_date", "TEXT")
+    _ensure_column(cursor, "todo_items", "remind_at", "TEXT")
+    _ensure_column(cursor, "todo_items", "remind_telegram", "INTEGER NOT NULL DEFAULT 1")
+    _ensure_column(cursor, "todo_items", "reminder_sent_at", "TEXT")
+    _ensure_column(cursor, "todo_items", "notes", "TEXT DEFAULT ''")
+
+    # Subscriptions financial metadata (backward compatible columns).
+    _ensure_column(cursor, "subscriptions", "amount", "REAL")
+    _ensure_column(cursor, "subscriptions", "currency", "TEXT NOT NULL DEFAULT 'RUB'")
+    _ensure_column(cursor, "subscriptions", "note", "TEXT DEFAULT ''")
+    _ensure_column(cursor, "subscriptions", "category", "TEXT DEFAULT ''")
+    _ensure_column(cursor, "subscriptions", "autopay", "INTEGER NOT NULL DEFAULT 1")
+    _ensure_column(cursor, "subscriptions", "remind_days", "INTEGER NOT NULL DEFAULT 3")
+
     # Query-path indexes for daily/weekly dashboards and gamification.
     cursor.execute(
         "CREATE INDEX IF NOT EXISTS idx_todo_user_status_done_at ON todo_items(user_id, status, done_at)"
     )
     cursor.execute(
         "CREATE INDEX IF NOT EXISTS idx_todo_user_created_at ON todo_items(user_id, created_at)"
+    )
+    cursor.execute(
+        "CREATE INDEX IF NOT EXISTS idx_todo_user_due_date ON todo_items(user_id, due_date)"
+    )
+    cursor.execute(
+        "CREATE INDEX IF NOT EXISTS idx_todo_reminder_queue ON todo_items(status, remind_telegram, remind_at, reminder_sent_at)"
     )
     cursor.execute(
         "CREATE INDEX IF NOT EXISTS idx_fitness_user_done_at ON fitness_sessions(user_id, done_at)"
@@ -415,6 +534,21 @@ def init_db():
     )
     cursor.execute(
         "CREATE INDEX IF NOT EXISTS idx_reflections_user_date ON daily_reflections(user_id, reflection_date)"
+    )
+    cursor.execute(
+        "CREATE INDEX IF NOT EXISTS idx_rag_vectors_user_source ON rag_vectors(user_id, source)"
+    )
+    cursor.execute(
+        "CREATE INDEX IF NOT EXISTS idx_rag_vectors_user_updated ON rag_vectors(user_id, updated_at)"
+    )
+    cursor.execute(
+        "CREATE INDEX IF NOT EXISTS idx_garage_assets_user ON garage_assets(user_id, id)"
+    )
+    cursor.execute(
+        "CREATE INDEX IF NOT EXISTS idx_garage_assets_user_insurance ON garage_assets(user_id, insurance_until)"
+    )
+    cursor.execute(
+        "CREATE INDEX IF NOT EXISTS idx_garage_assets_user_maintenance ON garage_assets(user_id, maintenance_due_date)"
     )
 
     conn.commit()
@@ -536,6 +670,106 @@ def get_cache_value(key: str):
     row = cursor.fetchone()
     conn.close()
     return row
+
+
+def rag_upsert_vectors(*, user_id: int, source: str, rows: list[dict[str, Any]], updated_at: str) -> int:
+    if not rows:
+        return 0
+    conn = _connect()
+    cursor = conn.cursor()
+    payload = []
+    for item in rows:
+        record_id = str(item.get("record_id") or "").strip()
+        embedding_json = str(item.get("embedding_json") or "").strip()
+        if not record_id or not embedding_json:
+            continue
+        payload.append(
+            (
+                user_id,
+                source,
+                record_id,
+                str(item.get("title") or "").strip()[:500],
+                str(item.get("snippet") or "").strip()[:4000],
+                str(item.get("ts") or "").strip()[:64],
+                str(item.get("meta_json") or "{}"),
+                embedding_json,
+                updated_at,
+            )
+        )
+    if not payload:
+        conn.close()
+        return 0
+    cursor.executemany(
+        """
+        INSERT INTO rag_vectors (
+            user_id, source, record_id, title, snippet, ts, meta_json, embedding_json, updated_at
+        )
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ON CONFLICT(user_id, source, record_id) DO UPDATE SET
+            title = excluded.title,
+            snippet = excluded.snippet,
+            ts = excluded.ts,
+            meta_json = excluded.meta_json,
+            embedding_json = excluded.embedding_json,
+            updated_at = excluded.updated_at
+        """,
+        payload,
+    )
+    changed = int(cursor.rowcount or 0)
+    conn.commit()
+    conn.close()
+    return changed
+
+
+def rag_delete_missing_records(*, user_id: int, source: str, keep_record_ids: list[str]) -> int:
+    conn = _connect()
+    cursor = conn.cursor()
+    clean_ids = [str(x).strip() for x in keep_record_ids if str(x).strip()]
+    if not clean_ids:
+        cursor.execute(
+            "DELETE FROM rag_vectors WHERE user_id = ? AND source = ?",
+            (user_id, source),
+        )
+    else:
+        placeholders = ",".join("?" for _ in clean_ids)
+        params = [user_id, source, *clean_ids]
+        cursor.execute(
+            f"DELETE FROM rag_vectors WHERE user_id = ? AND source = ? AND record_id NOT IN ({placeholders})",
+            params,
+        )
+    deleted = int(cursor.rowcount or 0)
+    conn.commit()
+    conn.close()
+    return deleted
+
+
+def rag_list_vectors(*, user_id: int, limit: int = 500) -> list[tuple[str, str, str, str, str, str, str]]:
+    conn = _connect()
+    cursor = conn.cursor()
+    cursor.execute(
+        """
+        SELECT source, record_id, title, snippet, ts, meta_json, embedding_json
+        FROM rag_vectors
+        WHERE user_id = ?
+        ORDER BY updated_at DESC, id DESC
+        LIMIT ?
+        """,
+        (user_id, max(1, limit)),
+    )
+    rows = cursor.fetchall()
+    conn.close()
+    return [
+        (
+            str(r[0] or ""),
+            str(r[1] or ""),
+            str(r[2] or ""),
+            str(r[3] or ""),
+            str(r[4] or ""),
+            str(r[5] or "{}"),
+            str(r[6] or "[]"),
+        )
+        for r in rows
+    ]
 
 
 def delete_cache_prefix(prefix: str) -> int:
@@ -1174,15 +1408,34 @@ def fitness_delete_workout(workout_id: int) -> bool:
     return changed
 
 
-def todo_add(*, user_id: int, text: str, created_at: str) -> int:
+def todo_add(
+    *,
+    user_id: int,
+    text: str,
+    created_at: str,
+    notes: str | None = None,
+    due_date: str | None = None,
+    remind_at: str | None = None,
+    remind_telegram: bool = True,
+) -> int:
     conn = _connect()
     cursor = conn.cursor()
     cursor.execute(
         """
-        INSERT INTO todo_items (user_id, text, status, created_at, done_at)
-        VALUES (?, ?, 'open', ?, NULL)
+        INSERT INTO todo_items (
+            user_id, text, status, created_at, done_at, due_date, remind_at, remind_telegram, reminder_sent_at, notes
+        )
+        VALUES (?, ?, 'open', ?, NULL, ?, ?, ?, NULL, ?)
         """,
-        (user_id, text, created_at),
+        (
+            user_id,
+            text,
+            created_at,
+            (str(due_date).strip() if due_date else None),
+            (str(remind_at).strip() if remind_at else None),
+            1 if remind_telegram else 0,
+            str(notes or "").strip(),
+        ),
     )
     conn.commit()
     todo_id = int(cursor.lastrowid)
@@ -1190,19 +1443,34 @@ def todo_add(*, user_id: int, text: str, created_at: str) -> int:
     return todo_id
 
 
-def todo_list_open(*, user_id: int, limit: int = 20):
+def todo_list_open(*, user_id: int, limit: int = 20, include_meta: bool = False):
     conn = _connect()
     cursor = conn.cursor()
-    cursor.execute(
-        """
-        SELECT id, text, created_at
-        FROM todo_items
-        WHERE user_id = ? AND status = 'open'
-        ORDER BY id DESC
-        LIMIT ?
-        """,
-        (user_id, max(1, limit)),
-    )
+    if include_meta:
+        cursor.execute(
+            """
+            SELECT id, text, created_at, due_date, remind_at, notes
+            FROM todo_items
+            WHERE user_id = ? AND status = 'open'
+            ORDER BY
+                CASE WHEN due_date IS NULL OR due_date = '' THEN 1 ELSE 0 END,
+                due_date ASC,
+                id DESC
+            LIMIT ?
+            """,
+            (user_id, max(1, limit)),
+        )
+    else:
+        cursor.execute(
+            """
+            SELECT id, text, created_at
+            FROM todo_items
+            WHERE user_id = ? AND status = 'open'
+            ORDER BY id DESC
+            LIMIT ?
+            """,
+            (user_id, max(1, limit)),
+        )
     rows = cursor.fetchall()
     conn.close()
     return rows
@@ -1239,6 +1507,183 @@ def todo_delete(*, user_id: int, todo_id: int) -> bool:
     changed = cursor.rowcount > 0
     conn.close()
     return changed
+
+
+def todo_update_schedule(
+    *,
+    user_id: int,
+    todo_id: int,
+    due_date: str | None = None,
+    remind_at: str | None = None,
+    remind_telegram: bool = True,
+) -> bool:
+    conn = _connect()
+    cursor = conn.cursor()
+    cursor.execute(
+        """
+        UPDATE todo_items
+        SET due_date = ?, remind_at = ?, remind_telegram = ?, reminder_sent_at = NULL
+        WHERE user_id = ? AND id = ? AND status = 'open'
+        """,
+        (
+            (str(due_date).strip() if due_date else None),
+            (str(remind_at).strip() if remind_at else None),
+            1 if remind_telegram else 0,
+            user_id,
+            todo_id,
+        ),
+    )
+    conn.commit()
+    changed = cursor.rowcount > 0
+    conn.close()
+    return changed
+
+
+def todo_update_item(
+    *,
+    user_id: int,
+    todo_id: int,
+    text: str | None = None,
+    has_text: bool = False,
+    notes: str | None = None,
+    has_notes: bool = False,
+    due_date: str | None = None,
+    has_due_date: bool = False,
+    remind_at: str | None = None,
+    has_remind_at: bool = False,
+    remind_telegram: bool | None = None,
+    has_remind_telegram: bool = False,
+) -> bool:
+    updates: list[str] = []
+    values: list[object] = []
+
+    if has_text:
+        updates.append("text = ?")
+        values.append(str(text or "").strip())
+    if has_notes:
+        updates.append("notes = ?")
+        values.append(str(notes or "").strip())
+
+    schedule_updated = False
+    if has_due_date:
+        updates.append("due_date = ?")
+        values.append(str(due_date).strip() if due_date else None)
+        schedule_updated = True
+    if has_remind_at:
+        updates.append("remind_at = ?")
+        values.append(str(remind_at).strip() if remind_at else None)
+        schedule_updated = True
+    if has_remind_telegram:
+        updates.append("remind_telegram = ?")
+        values.append(1 if bool(remind_telegram) else 0)
+        schedule_updated = True
+
+    if schedule_updated:
+        updates.append("reminder_sent_at = NULL")
+
+    if not updates:
+        return False
+
+    conn = _connect()
+    cursor = conn.cursor()
+    query = (
+        "UPDATE todo_items "
+        f"SET {', '.join(updates)} "
+        "WHERE user_id = ? AND id = ? AND status = 'open'"
+    )
+    values.extend([user_id, todo_id])
+    cursor.execute(query, tuple(values))
+    conn.commit()
+    changed = cursor.rowcount > 0
+    conn.close()
+    return changed
+
+
+def todo_due_reminders(*, now_iso: str, limit: int = 40) -> list[tuple[int, int, str, str | None, str | None]]:
+    conn = _connect()
+    cursor = conn.cursor()
+    cursor.execute(
+        """
+        SELECT id, user_id, text, due_date, remind_at
+        FROM todo_items
+        WHERE status = 'open'
+          AND remind_telegram = 1
+          AND remind_at IS NOT NULL
+          AND remind_at <> ''
+          AND remind_at <= ?
+          AND (reminder_sent_at IS NULL OR reminder_sent_at = '')
+        ORDER BY remind_at ASC, id ASC
+        LIMIT ?
+        """,
+        (now_iso, max(1, limit)),
+    )
+    rows = cursor.fetchall()
+    conn.close()
+    out: list[tuple[int, int, str, str | None, str | None]] = []
+    for row in rows:
+        out.append(
+            (
+                int(row[0]),
+                int(row[1]),
+                str(row[2] or ""),
+                (str(row[3]) if row[3] is not None else None),
+                (str(row[4]) if row[4] is not None else None),
+            )
+        )
+    return out
+
+
+def todo_mark_reminder_sent(*, todo_id: int, sent_at: str) -> bool:
+    conn = _connect()
+    cursor = conn.cursor()
+    cursor.execute(
+        """
+        UPDATE todo_items
+        SET reminder_sent_at = ?
+        WHERE id = ? AND status = 'open'
+        """,
+        (sent_at, todo_id),
+    )
+    conn.commit()
+    ok = cursor.rowcount > 0
+    conn.close()
+    return ok
+
+
+def todo_list_calendar(
+    *,
+    user_id: int,
+    limit: int = 800,
+) -> list[tuple[int, str, str, str, str | None, str | None, str | None, str | None]]:
+    conn = _connect()
+    cursor = conn.cursor()
+    cursor.execute(
+        """
+        SELECT id, text, status, created_at, done_at, due_date, remind_at, notes
+        FROM todo_items
+        WHERE user_id = ?
+        ORDER BY id DESC
+        LIMIT ?
+        """,
+        (user_id, max(1, limit)),
+    )
+    rows = cursor.fetchall()
+    conn.close()
+    out: list[tuple[int, str, str, str, str | None, str | None, str | None, str | None]] = []
+    for row in rows:
+        out.append(
+            (
+                int(row[0]),
+                str(row[1] or ""),
+                str(row[2] or ""),
+                str(row[3] or ""),
+                (str(row[4]) if row[4] is not None else None),
+                (str(row[5]) if row[5] is not None else None),
+                (str(row[6]) if row[6] is not None else None),
+                (str(row[7]) if row[7] is not None else None),
+            )
+        )
+    return out
 
 
 def daily_checkin_upsert(
@@ -1582,15 +2027,44 @@ def user_settings_set_crisis(
     )
 
 
-def subs_add(*, user_id: int, name: str, next_date: str, period: str, created_at: str) -> int:
+def subs_add(
+    *,
+    user_id: int,
+    name: str,
+    next_date: str,
+    period: str,
+    created_at: str,
+    amount: float | None = None,
+    currency: str | None = "RUB",
+    note: str | None = "",
+    category: str | None = "",
+    autopay: bool = True,
+    remind_days: int = 3,
+) -> int:
     conn = _connect()
     cursor = conn.cursor()
     cursor.execute(
         """
-        INSERT INTO subscriptions (user_id, name, next_date, period, created_at, updated_at)
-        VALUES (?, ?, ?, ?, ?, ?)
+        INSERT INTO subscriptions (
+            user_id, name, next_date, period, created_at, updated_at,
+            amount, currency, note, category, autopay, remind_days
+        )
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """,
-        (user_id, name, next_date, period, created_at, created_at),
+        (
+            user_id,
+            name,
+            next_date,
+            period,
+            created_at,
+            created_at,
+            (float(amount) if amount is not None else None),
+            (str(currency or "RUB").strip().upper() or "RUB"),
+            str(note or "").strip(),
+            str(category or "").strip(),
+            1 if autopay else 0,
+            max(0, int(remind_days)),
+        ),
     )
     sub_id = int(cursor.lastrowid or 0)
     conn.commit()
@@ -1613,6 +2087,42 @@ def subs_list(*, user_id: int) -> list[tuple[int, str, str, str]]:
     rows = cursor.fetchall()
     conn.close()
     return rows
+
+
+def subs_list_detailed(
+    *,
+    user_id: int,
+) -> list[tuple[int, str, str, str, float | None, str, str, str, int, int]]:
+    conn = _connect()
+    cursor = conn.cursor()
+    cursor.execute(
+        """
+        SELECT id, name, next_date, period, amount, currency, note, category, autopay, remind_days
+        FROM subscriptions
+        WHERE user_id = ?
+        ORDER BY next_date ASC, id ASC
+        """,
+        (user_id,),
+    )
+    rows = cursor.fetchall()
+    conn.close()
+    out: list[tuple[int, str, str, str, float | None, str, str, str, int, int]] = []
+    for row in rows:
+        out.append(
+            (
+                int(row[0]),
+                str(row[1] or ""),
+                str(row[2] or ""),
+                str(row[3] or ""),
+                (float(row[4]) if row[4] is not None else None),
+                str(row[5] or "RUB"),
+                str(row[6] or ""),
+                str(row[7] or ""),
+                int(row[8] or 0),
+                int(row[9] or 0),
+            )
+        )
+    return out
 
 
 def subs_delete(*, user_id: int, sub_id: int) -> bool:
@@ -1644,6 +2154,39 @@ def subs_get(*, user_id: int, sub_id: int) -> tuple[int, str, str, str] | None:
     return row
 
 
+def subs_get_detailed(
+    *,
+    user_id: int,
+    sub_id: int,
+) -> tuple[int, str, str, str, float | None, str, str, str, int, int] | None:
+    conn = _connect()
+    cursor = conn.cursor()
+    cursor.execute(
+        """
+        SELECT id, name, next_date, period, amount, currency, note, category, autopay, remind_days
+        FROM subscriptions
+        WHERE user_id = ? AND id = ?
+        """,
+        (user_id, sub_id),
+    )
+    row = cursor.fetchone()
+    conn.close()
+    if not row:
+        return None
+    return (
+        int(row[0]),
+        str(row[1] or ""),
+        str(row[2] or ""),
+        str(row[3] or ""),
+        (float(row[4]) if row[4] is not None else None),
+        str(row[5] or "RUB"),
+        str(row[6] or ""),
+        str(row[7] or ""),
+        int(row[8] or 0),
+        int(row[9] or 0),
+    )
+
+
 def subs_update_next_date(*, user_id: int, sub_id: int, next_date: str, updated_at: str) -> bool:
     conn = _connect()
     cursor = conn.cursor()
@@ -1654,6 +2197,198 @@ def subs_update_next_date(*, user_id: int, sub_id: int, next_date: str, updated_
         WHERE user_id = ? AND id = ?
         """,
         (next_date, updated_at, user_id, sub_id),
+    )
+    ok = cursor.rowcount > 0
+    conn.commit()
+    conn.close()
+    return ok
+
+
+def garage_seed_defaults(*, user_id: int, created_at: str) -> int:
+    conn = _connect()
+    cursor = conn.cursor()
+    cursor.execute("SELECT COUNT(1) FROM garage_assets WHERE user_id = ?", (int(user_id),))
+    row = cursor.fetchone()
+    count = int(row[0] or 0) if row else 0
+    if count > 0:
+        conn.close()
+        return 0
+
+    inserted = 0
+    for item in GARAGE_DEFAULT_ASSETS:
+        docs_json = json.dumps(item.get("docs") or [], ensure_ascii=False)
+        cursor.execute(
+            """
+            INSERT INTO garage_assets (
+                user_id, kind, title, year, nickname, vin, plate,
+                mileage_km, last_service_km, maintenance_interval_km,
+                maintenance_due_date, insurance_until, tech_inspection_until,
+                note, docs_json, created_at, updated_at
+            )
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                int(user_id),
+                str(item.get("kind") or "car"),
+                str(item.get("title") or "").strip() or "Vehicle",
+                int(item.get("year") or 0) or None,
+                str(item.get("nickname") or "").strip(),
+                "",
+                "",
+                0,
+                None,
+                max(3000, int(item.get("maintenance_interval_km") or 10000)),
+                None,
+                None,
+                None,
+                "",
+                docs_json,
+                str(created_at),
+                str(created_at),
+            ),
+        )
+        inserted += 1
+    conn.commit()
+    conn.close()
+    return inserted
+
+
+def garage_list_assets(
+    *,
+    user_id: int,
+) -> list[
+    tuple[
+        int,
+        str,
+        str,
+        int | None,
+        str,
+        str,
+        str,
+        int,
+        int | None,
+        int,
+        str | None,
+        str | None,
+        str | None,
+        str,
+        str,
+        str,
+    ]
+]:
+    conn = _connect()
+    cursor = conn.cursor()
+    cursor.execute(
+        """
+        SELECT
+            id, kind, title, year, nickname, vin, plate, mileage_km, last_service_km,
+            maintenance_interval_km, maintenance_due_date, insurance_until, tech_inspection_until,
+            note, docs_json, updated_at
+        FROM garage_assets
+        WHERE user_id = ?
+        ORDER BY id ASC
+        """,
+        (int(user_id),),
+    )
+    rows = cursor.fetchall()
+    conn.close()
+    out: list[
+        tuple[
+            int,
+            str,
+            str,
+            int | None,
+            str,
+            str,
+            str,
+            int,
+            int | None,
+            int,
+            str | None,
+            str | None,
+            str | None,
+            str,
+            str,
+            str,
+        ]
+    ] = []
+    for row in rows:
+        out.append(
+            (
+                int(row[0]),
+                str(row[1] or "car"),
+                str(row[2] or ""),
+                int(row[3]) if row[3] is not None else None,
+                str(row[4] or ""),
+                str(row[5] or ""),
+                str(row[6] or ""),
+                int(row[7] or 0),
+                int(row[8]) if row[8] is not None else None,
+                int(row[9] or 10000),
+                str(row[10] or "") or None,
+                str(row[11] or "") or None,
+                str(row[12] or "") or None,
+                str(row[13] or ""),
+                str(row[14] or "[]"),
+                str(row[15] or ""),
+            )
+        )
+    return out
+
+
+def garage_update_asset(
+    *,
+    user_id: int,
+    asset_id: int,
+    updated_at: str,
+    mileage_km: int | None = None,
+    last_service_km: int | None = None,
+    maintenance_interval_km: int | None = None,
+    maintenance_due_date: str | None = None,
+    insurance_until: str | None = None,
+    tech_inspection_until: str | None = None,
+    note: str | None = None,
+) -> bool:
+    fields: list[str] = []
+    values: list[Any] = []
+
+    if mileage_km is not None:
+        fields.append("mileage_km = ?")
+        values.append(max(0, int(mileage_km)))
+    if last_service_km is not None:
+        fields.append("last_service_km = ?")
+        values.append(max(0, int(last_service_km)))
+    if maintenance_interval_km is not None:
+        fields.append("maintenance_interval_km = ?")
+        values.append(max(1000, int(maintenance_interval_km)))
+    if maintenance_due_date is not None:
+        clean = str(maintenance_due_date).strip()
+        fields.append("maintenance_due_date = ?")
+        values.append(clean or None)
+    if insurance_until is not None:
+        clean = str(insurance_until).strip()
+        fields.append("insurance_until = ?")
+        values.append(clean or None)
+    if tech_inspection_until is not None:
+        clean = str(tech_inspection_until).strip()
+        fields.append("tech_inspection_until = ?")
+        values.append(clean or None)
+    if note is not None:
+        fields.append("note = ?")
+        values.append(str(note or "").strip())
+
+    if not fields:
+        return False
+
+    fields.append("updated_at = ?")
+    values.append(str(updated_at))
+    values.extend([int(user_id), int(asset_id)])
+
+    conn = _connect()
+    cursor = conn.cursor()
+    cursor.execute(
+        f"UPDATE garage_assets SET {', '.join(fields)} WHERE user_id = ? AND id = ?",
+        tuple(values),
     )
     ok = cursor.rowcount > 0
     conn.commit()
@@ -1988,6 +2723,45 @@ def subs_due_within(*, user_id: int, days: int = 7) -> list[tuple[int, str, str,
     rows = cursor.fetchall()
     conn.close()
     return rows
+
+
+def subs_due_within_detailed(
+    *,
+    user_id: int,
+    days: int = 7,
+) -> list[tuple[int, str, str, str, float | None, str, str, str, int, int]]:
+    today_iso = date.today().isoformat()
+    end_iso = (date.today() + timedelta(days=max(0, days))).isoformat()
+    conn = _connect()
+    cursor = conn.cursor()
+    cursor.execute(
+        """
+        SELECT id, name, next_date, period, amount, currency, note, category, autopay, remind_days
+        FROM subscriptions
+        WHERE user_id = ? AND next_date >= ? AND next_date <= ?
+        ORDER BY next_date ASC, id ASC
+        """,
+        (user_id, today_iso, end_iso),
+    )
+    rows = cursor.fetchall()
+    conn.close()
+    out: list[tuple[int, str, str, str, float | None, str, str, str, int, int]] = []
+    for row in rows:
+        out.append(
+            (
+                int(row[0]),
+                str(row[1] or ""),
+                str(row[2] or ""),
+                str(row[3] or ""),
+                (float(row[4]) if row[4] is not None else None),
+                str(row[5] or "RUB"),
+                str(row[6] or ""),
+                str(row[7] or ""),
+                int(row[8] or 0),
+                int(row[9] or 0),
+            )
+        )
+    return out
 
 
 def todo_list_all(*, user_id: int, limit: int = 500) -> list[tuple[int, str, str, str, str | None]]:

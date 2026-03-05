@@ -17,9 +17,21 @@ TOP_FEEDS = [
     "https://www.ixbt.com/export/news.rss",
     "https://3dnews.ru/news/rss/",
     "https://www.cnews.ru/inc/rss/news.xml",
+    "https://feeds.bbci.co.uk/news/technology/rss.xml",
+    "https://rss.nytimes.com/services/xml/rss/nyt/Technology.xml",
+    "https://www.theverge.com/rss/index.xml",
+    "https://www.engadget.com/rss.xml",
+    "https://www.wired.com/feed/rss",
+    "https://cointelegraph.com/rss",
+    "https://www.coindesk.com/arc/outboundfeeds/rss/",
     "https://news.google.com/rss/search?q=UFC&hl=ru&gl=RU&ceid=RU:ru",
     "https://news.google.com/rss/search?q=Dota+2&hl=ru&gl=RU&ceid=RU:ru",
     "https://news.google.com/rss/search?q=MotoGP&hl=ru&gl=RU&ceid=RU:ru",
+    "https://news.google.com/rss/search?q=AI+OR+LLM&hl=en-US&gl=US&ceid=US:en",
+    "https://news.google.com/rss/search?q=Technology&hl=en-US&gl=US&ceid=US:en",
+    "https://news.google.com/rss/search?q=Crypto+market&hl=en-US&gl=US&ceid=US:en",
+    "https://news.google.com/rss/search?q=Dota+2&hl=en-US&gl=US&ceid=US:en",
+    "https://news.google.com/rss/search?q=MotoGP&hl=en-US&gl=US&ceid=US:en",
 ]
 
 TOPIC_FEEDS = [
@@ -28,9 +40,21 @@ TOPIC_FEEDS = [
     "https://3dnews.ru/news/rss/",
     "https://www.cnews.ru/inc/rss/news.xml",
     "https://rssexport.rbc.ru/rbcnews/news/30/full.rss",
+    "https://feeds.bbci.co.uk/news/technology/rss.xml",
+    "https://rss.nytimes.com/services/xml/rss/nyt/Technology.xml",
+    "https://www.theverge.com/rss/index.xml",
+    "https://www.engadget.com/rss.xml",
+    "https://www.wired.com/feed/rss",
+    "https://cointelegraph.com/rss",
+    "https://www.coindesk.com/arc/outboundfeeds/rss/",
     "https://news.google.com/rss/search?q=UFC&hl=ru&gl=RU&ceid=RU:ru",
     "https://news.google.com/rss/search?q=Dota+2&hl=ru&gl=RU&ceid=RU:ru",
     "https://news.google.com/rss/search?q=MotoGP&hl=ru&gl=RU&ceid=RU:ru",
+    "https://news.google.com/rss/search?q=AI+OR+LLM&hl=en-US&gl=US&ceid=US:en",
+    "https://news.google.com/rss/search?q=Technology&hl=en-US&gl=US&ceid=US:en",
+    "https://news.google.com/rss/search?q=Crypto+market&hl=en-US&gl=US&ceid=US:en",
+    "https://news.google.com/rss/search?q=Dota+2&hl=en-US&gl=US&ceid=US:en",
+    "https://news.google.com/rss/search?q=MotoGP&hl=en-US&gl=US&ceid=US:en",
 ]
 
 MOTO_FALLBACK_FEEDS: list[str] = []
@@ -115,6 +139,24 @@ NOISE_KEYWORDS = [
 
 ALLOWED_GENERAL_KEYWORDS = sorted({kw for values in TOPIC_KEYWORDS.values() for kw in values})
 
+SOURCE_QUALITY_BOOST = {
+    "reuters.com": 5,
+    "bloomberg.com": 5,
+    "ft.com": 4,
+    "wsj.com": 4,
+    "bbc.com": 4,
+    "nytimes.com": 4,
+    "theverge.com": 3,
+    "engadget.com": 3,
+    "wired.com": 3,
+    "coindesk.com": 3,
+    "cointelegraph.com": 2,
+    "ixbt.com": 2,
+    "3dnews.ru": 2,
+    "cnews.ru": 2,
+    "vc.ru": 1,
+}
+
 
 def _clean_title(text: str) -> str:
     return " ".join((text or "").replace("\n", " ").split())
@@ -141,6 +183,7 @@ def _item_ts(item: dict[str, str]) -> float:
 
 def _rank_item(item: dict[str, str]) -> int:
     title = item["title"].lower()
+    domain = _url_domain(item.get("url", ""))
     score = 0
     for kw in TOPIC_KEYWORDS["нейросети"] + TOPIC_KEYWORDS["ии"]:
         if kw in title:
@@ -162,6 +205,10 @@ def _rank_item(item: dict[str, str]) -> int:
         score += 3
     elif age_sec <= 72 * 3600:
         score += 1
+
+    score += SOURCE_QUALITY_BOOST.get(domain, 0)
+    if domain == "news.google.com":
+        score -= 1
 
     return score
 

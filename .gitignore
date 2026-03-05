@@ -4,6 +4,8 @@
 .env
 .env.*
 !.env.example
+!.env.dev.example
+!.env.prod.example
 *.pem
 *.key
 *.p12
@@ -31,10 +33,6 @@ venv/
 env/
 ENV/
 Lib/
-Scripts/
-bin/
-include/
-pyvenv.cfg
 
 # ----------------------------
 # Tooling caches
@@ -67,7 +65,22 @@ jarvis.db
 *.db-wal
 *.bak
 *.tmp
+*.orig
+*.backup
+*._backup
+*_backup.py
+*.pre_autofix_backup
+*.mojibake_backup
 tmp_*.txt
 bad_lines_report.txt
 users.json
 logs/
+ops/codex_runs/
+ops/codex_inbox.jsonl
+ops/backups/
+ops/restore_safety/
+ops/.tmp/
+app/_reload_trigger.py
+Scripts/pip*.exe
+scripts/pip*.exe
+Video/
