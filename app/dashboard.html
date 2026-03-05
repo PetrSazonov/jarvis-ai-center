@@ -9769,11 +9769,103 @@
       display: none !important;
     }
 
+    /* UI polish v13: unified module presentation */
+    .card {
+      border-radius: 12px !important;
+      border: 1px solid rgba(56, 92, 74, 0.56) !important;
+      background: linear-gradient(180deg, rgba(10, 16, 13, 0.95), rgba(8, 14, 11, 0.95)) !important;
+      box-shadow: inset 0 1px 0 rgba(68, 108, 88, 0.16), 0 8px 20px rgba(0, 0, 0, 0.28) !important;
+    }
+
+    .card-head {
+      min-height: 34px !important;
+      padding: 9px 12px 8px !important;
+      border-bottom: 1px solid rgba(44, 72, 58, 0.52) !important;
+      gap: 8px !important;
+    }
+
+    .card-head h3 {
+      margin: 0 !important;
+      color: #bcd2c5 !important;
+      font-size: 11px !important;
+      font-weight: 600 !important;
+      letter-spacing: 0.14em !important;
+      line-height: 1.15 !important;
+      text-transform: uppercase !important;
+    }
+
+    .card-meta,
+    .card-meta [data-stamp] {
+      color: #7d9286 !important;
+      font-size: 10px !important;
+      letter-spacing: 0.12em !important;
+      text-transform: uppercase !important;
+      font-weight: 500 !important;
+    }
+
+    .stack {
+      gap: 8px !important;
+      padding: 10px !important;
+    }
+
+    .stack > .thing,
+    .stack > .thing-mini,
+    .stack > .news-item,
+    .stack > .task-row,
+    .stack > .event-row,
+    .stack > .sub-row,
+    .stack > .garage-row,
+    .stack > .ops-row,
+    .panel-compose,
+    .tasks-view-toolbar,
+    .ops-block,
+    .worldclock-wrap,
+    .market-shell,
+    .market-row {
+      border-radius: 10px !important;
+      border: 1px solid rgba(51, 85, 68, 0.46) !important;
+      background: rgba(12, 20, 16, 0.72) !important;
+    }
+
+    .card p,
+    .card li,
+    .card .text,
+    .card .value,
+    .card .thing-body {
+      color: #d9e7df !important;
+      font-size: 14px !important;
+      line-height: 1.42 !important;
+    }
+
+    .card .muted,
+    .card small,
+    .card .note,
+    .card .meta {
+      color: #8ba095 !important;
+      font-size: 11px !important;
+      line-height: 1.32 !important;
+    }
+
+    .empty {
+      color: #83998d !important;
+      font-size: 12px !important;
+      border: 1px dashed rgba(56, 88, 72, 0.48) !important;
+      border-radius: 10px !important;
+      background: rgba(10, 16, 13, 0.58) !important;
+      padding: 12px !important;
+    }
+
     .layout {
       display: grid !important;
-      grid-template-columns: 230px minmax(0, 1fr) 350px !important;
+      grid-template-columns: clamp(180px, 13vw, 228px) minmax(0, 1fr) clamp(312px, 22vw, 352px) !important;
       align-items: start !important;
       gap: 12px !important;
+    }
+
+    @media (min-width: 1321px) {
+      .layout > .rail.panel { grid-column: 1 !important; }
+      .layout > .main { grid-column: 2 !important; }
+      .layout > .copilot.panel { grid-column: 3 !important; }
     }
 
     .layout > .rail.panel {
@@ -9808,6 +9900,7 @@
       grid-auto-flow: row dense !important;
       grid-auto-rows: minmax(136px, auto) !important;
       gap: 12px !important;
+      align-content: start !important;
     }
 
     .main-grid > .card {
@@ -9837,7 +9930,7 @@
 
     @media (max-width: 1680px) {
       .layout {
-        grid-template-columns: 210px minmax(0, 1fr) 320px !important;
+        grid-template-columns: clamp(170px, 12vw, 208px) minmax(0, 1fr) clamp(290px, 21vw, 320px) !important;
       }
       .layout > .copilot.panel {
         width: 320px !important;
@@ -9878,6 +9971,13 @@
       .main-grid > .news,
       .main-grid > .market {
         grid-column: span 8 !important;
+      }
+      .card p,
+      .card li,
+      .card .text,
+      .card .value,
+      .card .thing-body {
+        font-size: 13px !important;
       }
     }
 
@@ -10847,16 +10947,104 @@
       return Math.max(1, Math.min(cols, span));
     }
 
+    function normalizedBaseSpan(rawSpan, cols) {
+      const raw = Math.max(1, Math.round(Number(rawSpan || 1)));
+      if (cols <= 1) return 1;
+      if (cols <= 8) {
+        if (raw >= 6) return 8;
+        return 4;
+      }
+      const capped = Math.max(2, Math.min(cols, Math.min(raw, 8)));
+      if (capped === 5 || capped === 7) return 6;
+      return capped;
+    }
+
+    function distributeRowFill(row, cols) {
+      if (!Array.isArray(row) || !row.length) return;
+      let total = row.reduce((sum, item) => sum + Math.max(1, Number(item.span || 1)), 0);
+      let left = Math.max(0, cols - total);
+      if (!left) return;
+      let guard = 0;
+      while (left > 0 && guard < 800) {
+        guard += 1;
+        let grew = false;
+        for (let i = 0; i < row.length && left > 0; i += 1) {
+          const item = row[i];
+          const max = Math.max(1, Number(item.max || cols));
+          if (item.span >= max) continue;
+          item.span += 1;
+          left -= 1;
+          grew = true;
+        }
+        if (!grew) break;
+      }
+    }
+
     function applyPanelSpans(preset) {
-      /*
-       * Keep geometry deterministic via CSS class spans.
-       * Inline grid-column overrides from past sessions produced
-       * conflicting states and tiny cards.
-       */
+      const cols = currentGridCols();
+      const visible = [];
+      allCards().forEach((card) => {
+        if (!(card instanceof HTMLElement)) return;
+        card.style.removeProperty("width");
+        card.style.removeProperty("height");
+        card.style.removeProperty("grid-row");
+        if (card.classList.contains("is-hidden")) {
+          card.style.removeProperty("grid-column");
+          return;
+        }
+        const id = cardId(card);
+        const meta = panelMetaById(id) || {};
+        const min = normalizedBaseSpan(meta.minW || 1, cols);
+        const max = Math.max(min, normalizedBaseSpan(meta.maxW || cols, cols));
+        const base = Math.max(min, Math.min(max, normalizedBaseSpan(desiredSpanForCard(card, preset), cols)));
+        visible.push({ card, span: base, min, max });
+      });
+
+      if (cols <= 1) {
+        visible.forEach((item) => {
+          item.card.style.setProperty("grid-column", "1 / -1", "important");
+        });
+        return;
+      }
+
+      let row = [];
+      let rowTotal = 0;
+      const flushRow = () => {
+        if (!row.length) return;
+        distributeRowFill(row, cols);
+        row.forEach((item) => {
+          item.card.style.setProperty("grid-column", `span ${Math.max(1, Math.min(cols, item.span))}`, "important");
+        });
+        row = [];
+        rowTotal = 0;
+      };
+
+      visible.forEach((item) => {
+        if (rowTotal + item.span > cols && row.length) {
+          flushRow();
+        }
+        row.push(item);
+        rowTotal += item.span;
+        if (rowTotal >= cols) {
+          flushRow();
+        }
+      });
+      flushRow();
+      allCards().forEach((card) => {
+        if (!(card instanceof HTMLElement)) return;
+        if (card.classList.contains("is-hidden")) {
+          card.style.removeProperty("grid-column");
+        }
+      });
+    }
+
+    function clearCardInlineLayout() {
       allCards().forEach((card) => {
         if (!(card instanceof HTMLElement)) return;
         card.style.removeProperty("grid-column");
         card.style.removeProperty("grid-row");
+        card.style.removeProperty("width");
+        card.style.removeProperty("height");
       });
     }
 
@@ -11685,11 +11873,8 @@
         card.classList.remove("is-collapsed");
         card.classList.remove("is-pinned");
         card.classList.remove("dragging");
-        card.style.removeProperty("grid-column");
-        card.style.removeProperty("grid-row");
-        card.style.removeProperty("width");
-        card.style.removeProperty("height");
       });
+      clearCardInlineLayout();
       applyDefaultOrder();
       applyPreset(presetKey(preset || "morning"));
       clearLayoutDirty();
